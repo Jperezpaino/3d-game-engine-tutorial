@@ -59,9 +59,9 @@
               <rules>
                 <banDuplicatePomDependencyVersions />
                 <requireMavenVersion>
-                  <version>3.9.6</version>
+                  <version>3.8.6</version>
                   <message>
-                    Invalid Maven version. It should, at least, be 3.9.6
+                    Invalid Maven version. It should, at least, be 3.8.6
                   </message>
                 </requireMavenVersion>
                 <requireJavaVersion>
@@ -114,6 +114,14 @@
         </executions>
       </plugin>
       <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>${exec-maven-plugin.version}</version>
+        <configuration>
+          <mainClass>es.noa.rad.game.Application</mainClass>
+        </configuration>
+      </plugin>
+      <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-install-plugin</artifactId>
         <version>${maven-install-plugin.version}</version>
@@ -140,6 +148,7 @@
     <maven-surefire-plugin.version>3.2.5</maven-surefire-plugin.version>
     <jar-maven-plugin.version>3.3.0</jar-maven-plugin.version>
     <checkstyle-maven-plugin.version>3.3.1</checkstyle-maven-plugin.version>
+    <exec-maven-plugin.version>3.1.1</exec-maven-plugin.version>
     <maven-install-plugin.version>3.1.1</maven-install-plugin.version>
     <maven-deploy-plugin.version>3.1.1</maven-deploy-plugin.version>
   </properties>
