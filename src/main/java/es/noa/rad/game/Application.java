@@ -1,5 +1,6 @@
 package es.noa.rad.game;
 
+import es.noa.rad.game.engine.config.Configuration;
 import es.noa.rad.game.engine.core.Window;
 
   /**
@@ -7,26 +8,6 @@ import es.noa.rad.game.engine.core.Window;
    */
   public final class Application
       implements Runnable {
-
-    /**
-     *
-     */
-    private static final long FRAME_TIME = 16L; /* Approximately 60 FPS. */
-
-    /**
-     *
-     */
-    public static final int WIDTH = 1280;
-
-    /**
-     *
-     */
-    public static final int HEIGHT = 720;
-
-    /**
-     *
-     */
-    public static final String TITLE = "3D Game Engine Tutorial";
 
     /**
      *
@@ -58,7 +39,7 @@ import es.noa.rad.game.engine.core.Window;
         this.update();
         this.render();
         try {
-          Thread.sleep(Application.FRAME_TIME);
+          Thread.sleep(Configuration.get().getFrameTime());
         } catch (
             final InterruptedException interruptedException) {
           interruptedException.printStackTrace();
@@ -72,10 +53,11 @@ import es.noa.rad.game.engine.core.Window;
      *
      */
     private void init() {
+      final Configuration config = Configuration.get();
       Window.get().init(
-        Application.WIDTH,
-        Application.HEIGHT,
-        Application.TITLE
+        config.getWindowWidth(),
+        config.getWindowHeight(),
+        config.getWindowTitle()
       );
     }
 
