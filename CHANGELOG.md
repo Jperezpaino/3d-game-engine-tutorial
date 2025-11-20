@@ -5,7 +5,7 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [[0.1.0]] - 2025-11-20
+## [0.1.0][0.1.0] - 2025-11-20
 
 ### Añadido
 
@@ -32,7 +32,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 - Manejo de `InterruptedException` en el game loop
 - Sin mecanismo de salida/shutdown implementado aún
 
-## [[0.0.0]] - 2025-11-19
+## [0.0.0][0.0.0] - 2025-11-19
 
 ### Añadido
 
