@@ -49,5 +49,3 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 - Sin dependencias externas
 - Build exitoso sin errores ni warnings
 - Código cumple 100% con reglas de Checkstyle
-
-[0.0.0]: https://github.com/tu-usuario/3d-game-engine-tutorial/releases/tag/v0.0.0

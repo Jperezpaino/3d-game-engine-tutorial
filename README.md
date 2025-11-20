@@ -67,11 +67,19 @@ mvn checkstyle:check
         es/noa/rad/game/
           Application.java
       resources/
+        es/noa/rad/game/
     test/
       java/
+        es/noa/rad/game/
       resources/
+        es/noa/rad/game/
   doc/
     checkstyle/
+      dtd/
+        configuration-1-3.dtd
+      checkstyle-rules.xml
+  CHANGELOG.md
+  LICENSE
   pom.xml
   README.md
 ```
