@@ -39,7 +39,7 @@ java -cp target\classes es.noa.rad.game.Application
 mvn clean package
 ```
 
-El archivo JAR se generará en `target/3d-game-engine-tutorial-0.1.0.jar`
+El archivo JAR se generará en `target/3d-game-engine-tutorial-0.2.0.jar`
 
 ## Pruebas
 
@@ -66,6 +66,9 @@ mvn checkstyle:check
       java/
         es/noa/rad/game/
           Application.java
+          engine/
+            core/
+              Window.java
       resources/
         es/noa/rad/game/
     test/
@@ -83,6 +86,18 @@ mvn checkstyle:check
   pom.xml
   README.md
 ```
+
+## Ciclo de Vida de la Aplicacion
+
+El motor de juego sigue un ciclo de vida claro y educativo:
+
+1. **Inicializacion (`init`)**: Configuracion de la ventana y recursos
+2. **Game Loop**: Bucle principal con actualizacion y renderizado
+   - `update()`: Actualiza la logica del juego
+   - `render()`: Dibuja el frame actual
+3. **Limpieza (`cleanup`)**: Libera recursos y termina GLFW
+
+Este patron enseña la importancia de la gestion correcta de recursos.
 
 ## Convenciones de Código
 

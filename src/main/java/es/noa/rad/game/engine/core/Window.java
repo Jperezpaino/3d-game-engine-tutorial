@@ -156,6 +156,17 @@ import org.lwjgl.system.MemoryUtil;
 
     /**
      *
+     */
+    public void cleanup() {
+      /* Free the window callbacks and destroy the window. */
+      GLFW.glfwDestroyWindow(this.glfwWindow);
+
+      /* Terminate GLFW and free the error callback. */
+      GLFW.glfwTerminate();
+    }
+
+    /**
+     *
      * @return {@code long}
      */
     public long glfwWindow() {

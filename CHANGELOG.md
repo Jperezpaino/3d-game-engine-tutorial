@@ -5,6 +5,57 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0][0.2.0] - 2025-11-20
+
+### Añadido
+
+- Dependencia LWJGL 3.3.1 (Lightweight Java Game Library)
+- Dependencia JOML 1.10.5 (Java OpenGL Math Library)
+- Dependencia JOML Primitives 1.10.0
+- Módulos LWJGL:
+  - lwjgl-glfw - Gestión de ventanas y entrada
+  - lwjgl-opengl - API de renderizado OpenGL
+  - lwjgl-openal - API de audio OpenAL
+  - lwjgl-assimp - Importación de modelos 3D
+  - lwjgl-bgfx - Abstracción de gráficos
+  - lwjgl-nanovg - Gráficos vectoriales
+  - lwjgl-nuklear - GUI inmediato
+  - lwjgl-par - Generación de formas paramétricas
+  - lwjgl-stb - Carga de imágenes y fuentes
+  - lwjgl-vulkan - API Vulkan
+- Clase `Window` con patrón Singleton
+- Gestión de ventana con GLFW
+- Ventana configurable (1280x720, "3D Game Engine Tutorial")
+- Ventana centrada automáticamente en la pantalla
+- Sistema de double buffering
+- Polling de eventos de ventana
+- Detección de cierre de ventana
+- Método `cleanup()` en Window para liberar recursos
+- Método `cleanup()` en Application que delega en Window
+- Constantes en `Application`: WIDTH, HEIGHT, TITLE
+- Natives de LWJGL para Windows
+
+### Cambiado
+
+- Game loop ahora termina cuando se cierra la ventana
+- `Application.init()` ahora inicializa la clase Window
+- `Application.update()` delega en `Window.update()`
+- `Application.render()` delega en `Window.render()`
+- `Application.cleanup()` delega en `Window.cleanup()`
+- Bucle while ahora usa `Window.get().shouldClose()`
+- Versión actualizada de 0.1.0 a 0.2.0
+
+### Notas Técnicas
+
+- Patrón Singleton thread-safe implementado en Window
+- Inicialización correcta de GLFW
+- Control de errores en creación de ventana
+- Gestión de memoria con MemoryUtil.NULL
+- Liberación correcta de recursos con glfwDestroyWindow y glfwTerminate
+- Ciclo de vida completo: init → loop → cleanup
+- Getters y setters para propiedades de Window
+- Ventana visible y funcional
+
 ## [0.1.0][0.1.0] - 2025-11-20
 
 ### Añadido
@@ -77,5 +128,6 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 - Build exitoso sin errores ni warnings
 - Código cumple 100% con reglas de Checkstyle
 
+[0.2.0]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.2.0
 [0.1.0]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.1.0
 [0.0.0]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.0.0

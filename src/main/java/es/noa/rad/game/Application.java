@@ -64,6 +64,8 @@ import es.noa.rad.game.engine.core.Window;
           interruptedException.printStackTrace();
         }
       }
+
+      this.cleanup();
     }
 
     /**
@@ -89,6 +91,13 @@ import es.noa.rad.game.engine.core.Window;
      */
     private void render() {
       Window.get().render();
+    }
+
+    /**
+     *
+     */
+    private void cleanup() {
+      Window.get().cleanup();
     }
 
     /**
