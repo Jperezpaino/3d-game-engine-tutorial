@@ -1,5 +1,7 @@
 package es.noa.rad.game;
 
+import es.noa.rad.game.engine.core.Window;
+
   /**
    *
    */
@@ -9,7 +11,22 @@ package es.noa.rad.game;
     /**
      *
      */
-    private static final long FRAME_TIME = 16L; // Approximately 60 FPS.
+    private static final long FRAME_TIME = 16L; /* Approximately 60 FPS. */
+
+    /**
+     *
+     */
+    public static final int WIDTH = 1280;
+
+    /**
+     *
+     */
+    public static final int HEIGHT = 720;
+
+    /**
+     *
+     */
+    public static final String TITLE = "3D Game Engine Tutorial";
 
     /**
      *
@@ -32,7 +49,12 @@ package es.noa.rad.game;
     @Override
     public void run() {
       this.init();
-      while (true) {
+
+      /*
+       * Run the rendering and updating loop until the user has attempted to
+       * close the window.
+       */
+      while (!Window.get().shouldClose()) {
         this.update();
         this.render();
         try {
@@ -48,21 +70,25 @@ package es.noa.rad.game;
      *
      */
     private void init() {
-      System.out.println("Initializing Game!");
+      Window.get().init(
+        Application.WIDTH,
+        Application.HEIGHT,
+        Application.TITLE
+      );
     }
 
     /**
      *
      */
     private void update() {
-      System.out.println("Updating Game!");
+      Window.get().update();
     }
 
     /**
      *
      */
     private void render() {
-      System.out.println("Rendering Game!");
+      Window.get().render();
     }
 
     /**
