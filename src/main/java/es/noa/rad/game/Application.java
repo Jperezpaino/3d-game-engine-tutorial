@@ -9,6 +9,11 @@ package es.noa.rad.game;
     /**
      *
      */
+    private static final long FRAME_TIME = 16L; // Approximately 60 FPS.
+
+    /**
+     *
+     */
     private final Thread game;
 
     /**
@@ -30,6 +35,12 @@ package es.noa.rad.game;
       while (true) {
         this.update();
         this.render();
+        try {
+          Thread.sleep(Application.FRAME_TIME);
+        } catch (
+            final InterruptedException interruptedException) {
+          interruptedException.printStackTrace();
+        }
       }
     }
 

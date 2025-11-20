@@ -5,6 +5,33 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0] - 2025-11-20
+
+### Añadido
+
+- Implementación básica del Game Loop
+- Clase `Application` ahora implementa `Runnable`
+- Thread dedicado para el motor de juego
+- Método `init()` para inicialización del juego
+- Método `update()` para actualización de lógica del juego
+- Método `render()` para renderizado del juego
+- Loop infinito con ciclo update-render
+- Control básico de frame rate con `Thread.sleep()`
+- Constante `FRAME_TIME` configurada a 16ms (~60 FPS)
+
+### Cambiado
+
+- `Application` cambió de simple "Hello World" a arquitectura de game loop
+- Versión actualizada de 0.0.0 a 0.1.0
+
+### Notas Técnicas
+
+- Game loop ejecuta en thread separado
+- Update y render se ejecutan continuamente
+- Frame rate aproximado de 60 FPS (16ms por frame)
+- Manejo de `InterruptedException` en el game loop
+- Sin mecanismo de salida/shutdown implementado aún
+
 ## [0.0.0] - 2025-11-19
 
 ### Añadido
@@ -49,3 +76,6 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 - Sin dependencias externas
 - Build exitoso sin errores ni warnings
 - Código cumple 100% con reglas de Checkstyle
+
+[0.1.0]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.1.0
+[0.0.0]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.0.0
