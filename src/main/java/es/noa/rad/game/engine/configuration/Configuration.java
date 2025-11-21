@@ -2,14 +2,11 @@ package es.noa.rad.game.engine.configuration;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Properties;
 
   /**
    *
    */
-  @SuppressWarnings("unchecked")
   public final class Configuration {
 
     /**
@@ -31,14 +28,8 @@ import java.util.Properties;
     /**
      *
      */
-    private final Map<String, Object> cache;
-
-    /**
-     *
-     */
     private Configuration() {
       this.properties = new Properties();
-      this.cache = new HashMap<>();
     }
 
     /**
@@ -76,42 +67,27 @@ import java.util.Properties;
           .getClassLoader().getResourceAsStream(Configuration.CONFIG_PATH);
         if (inputStream == null) {
           throw new IOException(
-            "Unable to find resource file 'application.properties'");
+            "Unable to find resource file 'application.properties'"
+          );
         }
         this.properties.load(inputStream);
-        this.validateRequiredProperties();
       } catch (
           final IOException iOException) {
         throw new RuntimeException(
-          "Error reading resource file: 'application.properties'", iOException);
+          "Error reading resource file: 'application.properties'",
+          iOException
+        );
       } finally {
-        if (inputStream != null) {
-          try {
+        try {
+          if (inputStream != null) {
             inputStream.close();
-          } catch (
-              final IOException iOException) {
-            iOException.printStackTrace();
           }
-        }
-      }
-    }
-
-    /**
-     *
-     * @throws IllegalStateException
-     */
-    private void validateRequiredProperties() {
-      final String[] requiredProperties = {
-        "window.width",
-        "window.height",
-        "window.title",
-        "game.frequency.time"
-      };
-
-      for (final String propertyKey : requiredProperties) {
-        if (this.properties.getProperty(propertyKey) == null) {
-          throw new IllegalStateException(
-            "Required property '" + propertyKey + "' is missing");
+        } catch (
+            final IOException iOException) {
+          throw new RuntimeException(
+            "Error closing resource file: 'application.properties'",
+            iOException
+          );
         }
       }
     }
@@ -137,50 +113,26 @@ import java.util.Properties;
     public <T> T property(
         final String _property,
         final Class<T> _classType) {
-      final String cacheKey = _property + ":" + _classType.getName();
-
-      /* Check cache first. */
-      if (this.cache.containsKey(cacheKey)) {
-        return (T) this.cache.get(cacheKey);
-      }
-
       final String property = this.property(_property);
       if (property == null) {
         throw new IllegalArgumentException(
           "Property '" + _property + "' not found");
       }
-
-      final T value = this.convertProperty(property, _classType);
-      this.cache.put(cacheKey, value);
-      return value;
-    }
-
-    /**
-     *
-     * @param <T> {@code <T>}
-     * @param _property {@code String}
-     * @param _defaultValue {@code T}
-     * @return {@code <T>}
-     */
-    public <T> T property(
-        final String _property,
-        final T _defaultValue) {
-      final Class<T> classType = (Class<T>) _defaultValue.getClass();
-      final String cacheKey = _property + ":" + classType.getName();
-
-      /* Check cache first. */
-      if (this.cache.containsKey(cacheKey)) {
-        return (T) this.cache.get(cacheKey);
+      if ((_classType == Integer.class)
+       || (_classType == int.class)) {
+        return (T) Integer.valueOf(property);
+      } else if ((_classType == Long.class)
+       || (_classType == long.class)) {
+        return (T) Long.valueOf(property);
+      } else if ((_classType == Boolean.class)
+       || (_classType == boolean.class)) {
+        return (T) Boolean.valueOf(property);
+      } else if ((_classType == Double.class)
+       || (_classType == double.class)) {
+        return (T) Double.valueOf(property);
+      } else {
+        return (T) property;
       }
-
-      final String property = this.property(_property);
-      if (property == null) {
-        return _defaultValue;
-      }
-
-      final T value = this.convertProperty(property, classType);
-      this.cache.put(cacheKey, value);
-      return value;
     }
 
     /**
@@ -188,26 +140,19 @@ import java.util.Properties;
      * @param <T> {@code <T>}
      * @param _property {@code String}
      * @param _classType {@code Class<T>}
+     * @param _defaultValue {@code <T>}
      * @return {@code <T>}
      */
-    private <T> T convertProperty(
+    public <T> T property(
         final String _property,
-        final Class<T> _classType) {
-      if ((_classType == Integer.class)
-       || (_classType == int.class)) {
-        return (T) Integer.valueOf(_property);
-      } else if ((_classType == Long.class)
-       || (_classType == long.class)) {
-        return (T) Long.valueOf(_property);
-      } else if ((_classType == Boolean.class)
-       || (_classType == boolean.class)) {
-        return (T) Boolean.valueOf(_property);
-      } else if ((_classType == Double.class)
-       || (_classType == double.class)) {
-        return (T) Double.valueOf(_property);
-      } else {
-        return (T) _property;
+        final Class<T> _classType,
+        final T _defaultValue) {
+      try {
+        return this.property(_property, _classType);
+      } catch (
+          final IllegalArgumentException illegalArgumentException) {
+        return _defaultValue;
       }
     }
 
- }
+  }
