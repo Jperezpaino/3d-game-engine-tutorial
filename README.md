@@ -67,10 +67,14 @@ mvn checkstyle:check
         es/noa/rad/game/
           Application.java
           engine/
+            configuration/
+              Configuration.java
             core/
               Window.java
       resources/
         es/noa/rad/game/
+          settings/
+            application.properties
     test/
       java/
         es/noa/rad/game/
@@ -81,6 +85,9 @@ mvn checkstyle:check
       dtd/
         configuration-1-3.dtd
       checkstyle-rules.xml
+  .gitattributes
+  .editorconfig
+  .gitignore
   CHANGELOG.md
   LICENSE
   pom.xml

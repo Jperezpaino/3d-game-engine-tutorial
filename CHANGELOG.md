@@ -5,6 +5,46 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1][0.2.1] - 2025-11-21
+
+### Añadido
+
+- Clase `Configuration` en paquete `engine.configuration`
+- Archivo de configuración `application.properties` en `src/main/resources/es/noa/rad/game/settings/`
+- Propiedades configurables:
+  - `window.width` - Ancho de la ventana
+  - `window.height` - Alto de la ventana
+  - `window.title` - Título de la ventana
+  - `game.frequency.time` - Tiempo de frame en milisegundos
+- Método `property(String)` para obtener propiedades como String
+- Método `property(String, Class<T>)` para obtener propiedades con conversión de tipo
+- Método `property(String, Class<T>, T)` para obtener propiedades con valor por defecto
+- Soporte para tipos: Integer, Long, Boolean, Double y String
+- Método `init()` en Configuration para cargar propiedades
+- Cierre explícito de InputStream en bloque finally
+- Archivo `.gitattributes` para control de finales de línea
+  - Fuerza LF en archivos de texto
+  - Mantiene CRLF en scripts de Windows
+  - Marca archivos binarios correctamente
+
+### Cambiado
+
+- `Application` eliminó constantes hardcodeadas (WIDTH, HEIGHT, TITLE, FRAME_TIME)
+- `Application.init()` ahora carga Configuration y usa propiedades
+- `Application.run()` usa `Configuration.get().property()` para frame time
+- Valores de configuración ahora se leen desde `application.properties`
+- Versión actualizada de 0.2.0 a 0.2.1
+
+### Notas Técnicas
+
+- Patrón Singleton thread-safe en Configuration
+- Try-catch-finally para gestión correcta de recursos
+- Conversión de tipos genérica con soporte para primitivos y wrappers
+- Manejo de excepciones con IllegalArgumentException si propiedad no existe
+- Método con valor por defecto usa try-catch para gestionar propiedades opcionales
+- Código educativo sin complejidad de caching
+- Documentación completa en application.properties
+
 ## [0.2.0][0.2.0] - 2025-11-20
 
 ### Añadido
@@ -128,6 +168,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 - Build exitoso sin errores ni warnings
 - Código cumple 100% con reglas de Checkstyle
 
+[0.2.1]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.2.1
 [0.2.0]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.2.0
 [0.1.0]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.1.0
 [0.0.0]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.0.0
