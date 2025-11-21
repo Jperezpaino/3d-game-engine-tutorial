@@ -2,12 +2,24 @@ package es.noa.rad.game;
 
 import es.noa.rad.game.engine.core.Window;
 import es.noa.rad.game.engine.configuration.Configuration;
+import es.noa.rad.game.engine.configuration.settings.GameSettings;
+import es.noa.rad.game.engine.configuration.settings.WindowSettings;
 
   /**
    *
    */
   public final class Application
       implements Runnable {
+
+    /**
+     *
+     */
+    public static final int WIDTH = 1280;
+
+    /**
+     *
+     */
+    public static final int HEIGHT = 720;
 
     /**
      *
@@ -40,7 +52,7 @@ import es.noa.rad.game.engine.configuration.Configuration;
         this.render();
         try {
           Thread.sleep(
-            Configuration.get().property("game.frequency.time", Integer.class)
+            GameSettings.GAME_FREQUENCY_TIME.get()
           );
         } catch (
             final InterruptedException interruptedException) {
@@ -57,9 +69,9 @@ import es.noa.rad.game.engine.configuration.Configuration;
     private void init() {
       Configuration.get().init();
       Window.get().init(
-        Configuration.get().property("window.width", Integer.class),
-        Configuration.get().property("window.height", Integer.class),
-        Configuration.get().property("window.title")
+        WindowSettings.WINDOW_WIDTH.get(Application.WIDTH),
+        WindowSettings.WINDOW_HEIGHT.get(Application.HEIGHT),
+        WindowSettings.WINDOW_TITLE.get()
       );
     }
 

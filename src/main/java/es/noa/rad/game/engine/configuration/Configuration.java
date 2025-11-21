@@ -2,6 +2,7 @@ package es.noa.rad.game.engine.configuration;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Duration;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
@@ -25,6 +26,11 @@ import java.util.concurrent.ConcurrentHashMap;
     /**
      *
      */
+    private boolean initialized;
+
+    /**
+     *
+     */
     private final Properties properties;
 
     /**
@@ -36,6 +42,7 @@ import java.util.concurrent.ConcurrentHashMap;
      *
      */
     private Configuration() {
+      this.initialized = false;
       this.properties = new Properties();
       this.propertiesCache = new ConcurrentHashMap<>();
     }
@@ -79,6 +86,7 @@ import java.util.concurrent.ConcurrentHashMap;
           );
         }
         this.properties.load(inputStream);
+        this.initialized = true;
       } catch (
           final IOException iOException) {
         throw new RuntimeException(
@@ -102,10 +110,22 @@ import java.util.concurrent.ConcurrentHashMap;
 
     /**
      *
+     * @throws IllegalStateException
+     */
+    private void initialized() {
+      if (!this.initialized) {
+        throw new IllegalStateException(
+          "Configuration must be initialized. Call Configuration.get().init()."
+        );
+      }
+    }
+
+    /**
+     *
      * @param _property {@code String}
      * @return {@code String}
      */
-    public String property(
+    private String property(
         final String _property) {
       return this.properties.getProperty(_property);
     }
@@ -122,6 +142,9 @@ import java.util.concurrent.ConcurrentHashMap;
     public <T> T property(
         final String _property,
         final Class<T> _classType) {
+
+      /* Verified that the configuration is initialized. */
+      this.initialized();
 
       /* Check cache first. */
       final String cacheKey = _property + ":" + _classType.getName();
@@ -148,6 +171,10 @@ import java.util.concurrent.ConcurrentHashMap;
       } else if ((_classType == Double.class)
        || (_classType == double.class)) {
         value = (T) Double.valueOf(property);
+      } else if (_classType == Duration.class) {
+        final long milliseconds
+          = (Long) Long.valueOf(property);
+        value = (T) Duration.ofMillis(milliseconds);
       } else {
         value = (T) property;
       }
