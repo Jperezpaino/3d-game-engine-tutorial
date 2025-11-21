@@ -2,6 +2,8 @@ package es.noa.rad.game.engine.configuration;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 
   /**
@@ -28,8 +30,14 @@ import java.util.Properties;
     /**
      *
      */
+    private final Map<String, Object> propertiesCache;
+
+    /**
+     *
+     */
     private Configuration() {
       this.properties = new Properties();
+      this.propertiesCache = new HashMap<>();
     }
 
     /**
@@ -113,26 +121,38 @@ import java.util.Properties;
     public <T> T property(
         final String _property,
         final Class<T> _classType) {
+
+      /* Check cache first. */
+      final String cacheKey = _property + ":" + _classType.getName();
+      if (this.propertiesCache.containsKey(cacheKey)) {
+        return (T) this.propertiesCache.get(cacheKey);
+      }
+
       final String property = this.property(_property);
       if (property == null) {
         throw new IllegalArgumentException(
           "Property '" + _property + "' not found");
       }
+
+      T value = null;
       if ((_classType == Integer.class)
        || (_classType == int.class)) {
-        return (T) Integer.valueOf(property);
+        value = (T) Integer.valueOf(property);
       } else if ((_classType == Long.class)
        || (_classType == long.class)) {
-        return (T) Long.valueOf(property);
+        value = (T) Long.valueOf(property);
       } else if ((_classType == Boolean.class)
        || (_classType == boolean.class)) {
-        return (T) Boolean.valueOf(property);
+        value = (T) Boolean.valueOf(property);
       } else if ((_classType == Double.class)
        || (_classType == double.class)) {
-        return (T) Double.valueOf(property);
+        value = (T) Double.valueOf(property);
       } else {
-        return (T) property;
+        value = (T) property;
       }
+
+      this.propertiesCache.put(cacheKey, value);
+      return value;
     }
 
     /**
@@ -151,6 +171,9 @@ import java.util.Properties;
         return this.property(_property, _classType);
       } catch (
           final IllegalArgumentException illegalArgumentException) {
+        /* Cache the default value. */
+        final String cacheKey = _property + ":" + _classType.getName();
+        this.propertiesCache.put(cacheKey, _defaultValue);
         return _defaultValue;
       }
     }
