@@ -22,10 +22,6 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 - Soporte para tipos: Integer, Long, Boolean, Double y String
 - Método `init()` en Configuration para cargar propiedades
 - Cierre explícito de InputStream en bloque finally
-- Archivo `.gitattributes` para control de finales de línea
-  - Fuerza LF en archivos de texto
-  - Mantiene CRLF en scripts de Windows
-  - Marca archivos binarios correctamente
 
 ### Cambiado
 
@@ -141,6 +137,10 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 - Plugin `exec-maven-plugin` para ejecutar la aplicación con Maven
 - Archivo `.editorconfig` para consistencia de formato
 - Archivo `.gitignore` completo para Maven, IDEs y OS
+- Archivo `.gitattributes` para control de finales de línea
+  - Fuerza LF en archivos de texto
+  - Mantiene CRLF en scripts de Windows
+  - Marca archivos binarios correctamente
 - Documentación completa en `README.md`:
   - Requisitos del proyecto
   - Instrucciones de compilación y ejecución
