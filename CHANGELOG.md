@@ -5,6 +5,36 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2][0.2.2] - 2025-11-21
+
+### Añadido
+
+- Sistema de caché en clase `Configuration` para propiedades convertidas
+- `ConcurrentHashMap<String, Object>` para almacenar valores en caché
+- Caché thread-safe para acceso concurrente seguro
+- Cacheo automático de valores convertidos (Integer, Long, Boolean, Double, String)
+- Cacheo de valores por defecto cuando una propiedad no existe
+
+### Cambiado
+
+- `property(String, Class<T>)` ahora usa caché antes de realizar conversión
+- Clave de caché compuesta: `propiedad:nombreClase` para unicidad
+- Versión actualizada de 0.2.1 a 0.2.2
+
+### Optimizado
+
+- Conversiones de tipo se realizan solo una vez por propiedad+tipo
+- Mejora significativa en game loop: `property("game.frequency.time", Integer.class)` 
+  se ejecuta ~60 veces/segundo, ahora convierte solo la primera vez
+- Reducción de parsing repetitivo de strings a tipos primitivos
+
+### Notas Técnicas
+
+- `ConcurrentHashMap` garantiza thread-safety sin sincronización explícita
+- Patrón de caché implementado: Check-Convert-Store
+- Variable temporal `value` para mejor legibilidad del código
+- Caché se mantiene durante toda la vida de la aplicación
+
 ## [0.2.1][0.2.1] - 2025-11-21
 
 ### Añadido
@@ -38,7 +68,6 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 - Conversión de tipos genérica con soporte para primitivos y wrappers
 - Manejo de excepciones con IllegalArgumentException si propiedad no existe
 - Método con valor por defecto usa try-catch para gestionar propiedades opcionales
-- Código educativo sin complejidad de caching
 - Documentación completa en application.properties
 
 ## [0.2.0][0.2.0] - 2025-11-20
@@ -168,6 +197,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 - Build exitoso sin errores ni warnings
 - Código cumple 100% con reglas de Checkstyle
 
+[0.2.2]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.2.2
 [0.2.1]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.2.1
 [0.2.0]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.2.0
 [0.1.0]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.1.0

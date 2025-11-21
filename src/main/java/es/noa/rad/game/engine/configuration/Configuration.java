@@ -2,9 +2,9 @@ package es.noa.rad.game.engine.configuration;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.ConcurrentHashMap;
 
   /**
    *
@@ -37,7 +37,7 @@ import java.util.Properties;
      */
     private Configuration() {
       this.properties = new Properties();
-      this.propertiesCache = new HashMap<>();
+      this.propertiesCache = new ConcurrentHashMap<>();
     }
 
     /**
@@ -118,6 +118,7 @@ import java.util.Properties;
      * @return {@code <T>}
      * @throws IllegalArgumentException
      */
+    @SuppressWarnings("unchecked") 
     public <T> T property(
         final String _property,
         final Class<T> _classType) {
