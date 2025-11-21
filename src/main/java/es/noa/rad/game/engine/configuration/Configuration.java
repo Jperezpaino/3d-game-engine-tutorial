@@ -118,7 +118,7 @@ import java.util.concurrent.ConcurrentHashMap;
      * @return {@code <T>}
      * @throws IllegalArgumentException
      */
-    @SuppressWarnings("unchecked") 
+    @SuppressWarnings("unchecked")
     public <T> T property(
         final String _property,
         final Class<T> _classType) {
