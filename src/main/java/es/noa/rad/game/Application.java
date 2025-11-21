@@ -52,7 +52,7 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
         this.render();
         try {
           Thread.sleep(
-            GameSettings.GAME_FREQUENCY_TIME.get()
+            (long) GameSettings.GAME_FREQUENCY_TIME.get()
           );
         } catch (
             final InterruptedException interruptedException) {
