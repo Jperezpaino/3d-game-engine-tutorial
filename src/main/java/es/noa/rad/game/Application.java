@@ -1,7 +1,7 @@
 package es.noa.rad.game;
 
-import es.noa.rad.game.engine.config.Configuration;
 import es.noa.rad.game.engine.core.Window;
+import es.noa.rad.game.engine.configuration.Configuration;
 
   /**
    *
@@ -39,7 +39,9 @@ import es.noa.rad.game.engine.core.Window;
         this.update();
         this.render();
         try {
-          Thread.sleep(Configuration.get().getFrameTime());
+          Thread.sleep(
+            Configuration.get().property("game.frequency.time", Integer.class)
+          );
         } catch (
             final InterruptedException interruptedException) {
           interruptedException.printStackTrace();
@@ -53,11 +55,11 @@ import es.noa.rad.game.engine.core.Window;
      *
      */
     private void init() {
-      final Configuration config = Configuration.get();
+      Configuration.get().init();
       Window.get().init(
-        config.getWindowWidth(),
-        config.getWindowHeight(),
-        config.getWindowTitle()
+        Configuration.get().property("window.width", Integer.class),
+        Configuration.get().property("window.height", Integer.class),
+        Configuration.get().property("window.title")
       );
     }
 
