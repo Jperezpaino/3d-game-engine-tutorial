@@ -1,7 +1,5 @@
 package es.noa.rad.game.engine.configuration.settings;
 
-import java.time.Duration;
-
 import es.noa.rad.game.engine.configuration.Configuration;
 
   /**
@@ -14,7 +12,7 @@ import es.noa.rad.game.engine.configuration.Configuration;
      */
     GAME_FREQUENCY_TIME(
       "game.frequency.time",
-      Duration.class
+      Long.class
     );
 
     /**

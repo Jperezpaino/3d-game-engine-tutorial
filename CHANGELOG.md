@@ -5,6 +5,47 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.3][0.2.3] - 2025-11-21
+
+### Añadido
+
+- **Enum `WindowSettings`** para encapsular propiedades de ventana
+  - `WINDOW_WIDTH` - Ancho de la ventana (Integer)
+  - `WINDOW_HEIGHT` - Alto de la ventana (Integer)
+  - `WINDOW_TITLE` - Título de la ventana (String)
+- **Enum `GameSettings`** para encapsular propiedades del juego
+  - `GAME_FREQUENCY_TIME` - Tiempo de frame en milisegundos (Long)
+- Métodos `get()` y `get(T defaultValue)` en enums de settings
+- Flag `initialized` en `Configuration` para control de estado
+- Método `initialized()` para validar que Configuration está cargada antes de acceder
+- Paquete `engine.configuration.settings` para clases de configuración
+- Validación fail-fast con `IllegalStateException` si se accede sin inicializar
+
+### Cambiado
+
+- **Método `property(String)` ahora es privado** - Encapsulamiento mejorado
+- `Application` ahora usa `WindowSettings.WINDOW_WIDTH.get()` en lugar de strings literales
+- `Application` ahora usa `WindowSettings.WINDOW_HEIGHT.get()` en lugar de strings literales
+- `Application` ahora usa `WindowSettings.WINDOW_TITLE.get()` en lugar de strings literales
+- `Application` ahora usa `GameSettings.GAME_FREQUENCY_TIME.get()` para frame time
+- Acceso a configuración ahora es type-safe mediante enums
+- Eliminación de strings mágicos en el código de aplicación
+- Versión actualizada de 0.2.2 a 0.2.3
+
+### Eliminado
+
+- Soporte para `Duration` en `Configuration` - Simplificado a `Long` para milisegundos
+- Acceso directo a propiedades mediante strings desde código de aplicación
+
+### Notas Técnicas
+
+- **Patrón Enum para settings**: Type-safety a nivel de compilación
+- Enums proporcionan autocomplete en IDE y refactoring seguro
+- Principio DRY aplicado: propiedades definidas una sola vez en enums
+- Cada enum encapsula nombre de propiedad y tipo de dato
+- Mejora la mantenibilidad: cambios en nombres de propiedades solo en un lugar
+- Sistema de configuración completamente type-safe desde el código cliente
+
 ## [0.2.2][0.2.2] - 2025-11-21
 
 ### Añadido
@@ -197,6 +238,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 - Build exitoso sin errores ni warnings
 - Código cumple 100% con reglas de Checkstyle
 
+[0.2.3]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.2.3
 [0.2.2]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.2.2
 [0.2.1]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.2.1
 [0.2.0]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.2.0

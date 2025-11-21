@@ -2,7 +2,6 @@ package es.noa.rad.game.engine.configuration;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.time.Duration;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
@@ -171,10 +170,6 @@ import java.util.concurrent.ConcurrentHashMap;
       } else if ((_classType == Double.class)
        || (_classType == double.class)) {
         value = (T) Double.valueOf(property);
-      } else if (_classType == Duration.class) {
-        final long milliseconds
-          = (Long) Long.valueOf(property);
-        value = (T) Duration.ofMillis(milliseconds);
       } else {
         value = (T) property;
       }

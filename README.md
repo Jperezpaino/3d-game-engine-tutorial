@@ -39,7 +39,7 @@ java -cp target\classes es.noa.rad.game.Application
 mvn clean package
 ```
 
-El archivo JAR se generará en `target/3d-game-engine-tutorial-0.2.2.jar`
+El archivo JAR se generará en `target/3d-game-engine-tutorial-0.2.3.jar`
 
 ## Sistema de Configuración
 
@@ -61,22 +61,31 @@ game.frequency.time = 16
 
 ### Uso de Configuration
 
+El sistema utiliza enums type-safe para acceder a las propiedades:
+
 ```java
-// Obtener instancia Singleton
-Configuration config = Configuration.get();
+// Inicializar configuración (solo una vez al inicio)
+Configuration.get().init();
 
-// Inicializar (cargar propiedades desde archivo)
-config.init();
+// Usar WindowSettings para propiedades de ventana
+Integer width = WindowSettings.WINDOW_WIDTH.get();
+Integer height = WindowSettings.WINDOW_HEIGHT.get();
+String title = WindowSettings.WINDOW_TITLE.get();
 
-// Obtener propiedad como String
-String title = config.property("window.title");
+// Usar valores por defecto si la propiedad no existe
+Integer width = WindowSettings.WINDOW_WIDTH.get(1280);
 
-// Obtener propiedad con conversión de tipo
-Integer width = config.property("window.width", Integer.class);
-
-// Obtener propiedad con valor por defecto
-Boolean vsync = config.property("window.vsync", Boolean.class, false);
+// Usar GameSettings para propiedades del juego
+Long frameTime = GameSettings.GAME_FREQUENCY_TIME.get();
 ```
+
+#### Ventajas del sistema de enums:
+
+- **Type-safe**: Los tipos están definidos en tiempo de compilación
+- **Autocomplete**: El IDE muestra todas las propiedades disponibles
+- **Refactoring seguro**: Cambiar el nombre de una propiedad es seguro
+- **Sin strings mágicos**: No hay strings literales en el código
+- **Documentación implícita**: Los enums documentan qué propiedades existen
 
 ### Características
 
@@ -114,6 +123,9 @@ mvn checkstyle:check
           engine/
             configuration/
               Configuration.java
+              settings/
+                GameSettings.java
+                WindowSettings.java
             core/
               Window.java
       resources/
