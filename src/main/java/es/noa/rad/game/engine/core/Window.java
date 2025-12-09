@@ -78,8 +78,6 @@ import org.lwjgl.system.MemoryUtil;
         final int _width,
         final int _height,
         final String _title) {
-      System.out.println("Initializing Game!");
-
       this.width = _width;
       this.height = _height;
       this.title = _title;
@@ -88,7 +86,7 @@ import org.lwjgl.system.MemoryUtil;
        * Initialize GLFW. Most GLFW functions will not work before doing this.
        */
       if (!GLFW.glfwInit()) {
-        System.err.println("ERROR: GLFW wasn't initializied");
+        System.err.printf("ERROR: GLFW wasn't initializied.%n");
         return;
       }
 
@@ -103,7 +101,7 @@ import org.lwjgl.system.MemoryUtil;
         );
 
       if (this.glfwWindow == MemoryUtil.NULL) {
-        System.err.println("ERROR: Window wasn't created");
+        System.err.printf("ERROR: Window wasn't created.%n");
         return;
       }
 
@@ -126,8 +124,6 @@ import org.lwjgl.system.MemoryUtil;
      *
      */
     public void update() {
-      System.out.println("Updating Game!");
-
       /*
        * Poll for window events. The key callback above will only be invoked
        * during this call.
@@ -139,8 +135,6 @@ import org.lwjgl.system.MemoryUtil;
      *
      */
     public void render() {
-      System.out.println("Rendering Game!");
-
       /* Swap the window buffers. */
       GLFW.glfwSwapBuffers(this.glfwWindow);
     }
@@ -157,29 +151,12 @@ import org.lwjgl.system.MemoryUtil;
     /**
      *
      */
-    public void cleanup() {
+    public void close() {
       /* Free the window callbacks and destroy the window. */
       GLFW.glfwDestroyWindow(this.glfwWindow);
 
       /* Terminate GLFW and free the error callback. */
       GLFW.glfwTerminate();
-    }
-
-    /**
-     *
-     * @return {@code long}
-     */
-    public long glfwWindow() {
-      return this.glfwWindow;
-    }
-
-    /**
-     *
-     * @param _glfwWindow {@code long}
-     */
-    public void glfwWindow(
-        final long _glfwWindow) {
-      this.glfwWindow = _glfwWindow;
     }
 
     /**
@@ -192,15 +169,6 @@ import org.lwjgl.system.MemoryUtil;
 
     /**
      *
-     * @param _width {@code int}
-     */
-    public void width(
-        final int _width) {
-      this.width = _width;
-    }
-
-    /**
-     *
      * @return {@code int}
      */
     public int height() {
@@ -209,28 +177,10 @@ import org.lwjgl.system.MemoryUtil;
 
     /**
      *
-     * @param _height {@code int}
-     */
-    public void height(
-        final int _height) {
-      this.height = _height;
-    }
-
-    /**
-     *
      * @return {@code String}
      */
     public String title() {
       return this.title;
-    }
-
-    /**
-     *
-     * @param _title {@code String}
-     */
-    public void title(
-        final String _title) {
-      this.title = _title;
     }
 
   }

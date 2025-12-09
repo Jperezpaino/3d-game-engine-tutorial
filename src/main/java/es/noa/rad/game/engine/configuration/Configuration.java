@@ -158,18 +158,36 @@ import java.util.concurrent.ConcurrentHashMap;
       }
 
       T value = null;
-      if ((_classType == Integer.class)
+      if ((_classType == Byte.class)
+       || (_classType == byte.class)) {
+        value = (T) Byte.valueOf(property);
+      } else if ((_classType == Short.class)
+       || (_classType == short.class)) {
+        value = (T) Short.valueOf(property);
+      } else if ((_classType == Integer.class)
        || (_classType == int.class)) {
         value = (T) Integer.valueOf(property);
       } else if ((_classType == Long.class)
        || (_classType == long.class)) {
         value = (T) Long.valueOf(property);
-      } else if ((_classType == Boolean.class)
-       || (_classType == boolean.class)) {
-        value = (T) Boolean.valueOf(property);
+      } else if ((_classType == Float.class)
+       || (_classType == float.class)) {
+        value = (T) Float.valueOf(property);
       } else if ((_classType == Double.class)
        || (_classType == double.class)) {
         value = (T) Double.valueOf(property);
+      } else if ((_classType == Boolean.class)
+       || (_classType == boolean.class)) {
+        value = (T) Boolean.valueOf(property);
+      } else if ((_classType == Character.class)
+       || (_classType == char.class)) {
+        /* For Character, we take the first character of the string. */
+       if ((property != null)
+        && (!property.isEmpty())) {
+         value = (T) Character.valueOf(property.charAt(0));
+        } else {
+         value = (T) Character.valueOf('\0');
+        }
       } else {
         value = (T) property;
       }
