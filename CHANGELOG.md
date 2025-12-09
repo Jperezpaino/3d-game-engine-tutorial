@@ -5,6 +5,55 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0][0.3.0] - 2025-12-09
+
+### Añadido
+
+- **Sistema de medición de FPS (Frames Per Second)** en `Application`
+  - Campo `int fps` para contar frames por segundo
+  - Campo `long fpsTime` para timestamp de medición de FPS
+  - Método `increaseFps()` para incrementar contador
+  - Método `resetFps()` para reiniciar contador a cero
+  - Método `resetFpsTime()` para actualizar timestamp
+- **Sistema de medición de UPS (Updates Per Second)** en `Application`
+  - Campo `int ups` para contar actualizaciones por segundo
+  - Campo `long upsTime` para timestamp de medición de UPS
+  - Método `increaseUps()` para incrementar contador
+  - Método `resetUps()` para reiniciar contador a cero
+  - Método `resetUpsTime()` para actualizar timestamp
+- **Impresión de estadísticas en consola** cada segundo
+  - Formato: `UPS: X | FPS: Y`
+  - Actualización automática de contadores
+- **Soporte extendido de tipos en `Configuration`**
+  - `Byte` - Conversión con `Byte.parseByte()`
+  - `Short` - Conversión con `Short.parseShort()`
+  - `Float` - Conversión con `Float.parseFloat()`
+  - `Character` - Extracción con `charAt(0)`, valor por defecto '\0'
+
+### Cambiado
+
+- **Game loop ahora mide rendimiento en tiempo real**
+  - Llama a `increaseUps()` después de cada `update()`
+  - Llama a `increaseFps()` después de cada `render()`
+  - Verifica timestamps cada iteración para imprimir estadísticas
+- `Application.run()` ahora usa `TimeUnit.SECONDS.toMillis(1L)` para obtener 1 segundo en milisegundos
+- `Application` ahora usa `System.currentTimeMillis()` para mediciones de tiempo
+- Versión actualizada de 0.2.3 a 0.3.0
+
+### Notas Técnicas
+
+- **Enfoque "Fixed Sleep"**: Implementación educativa con limitaciones conocidas
+  - FPS y UPS están acoplados (mismo ciclo)
+  - `Thread.sleep(16)` proporciona ~60 FPS/UPS objetivo
+  - No compensa el overhead de `update()` y `render()`
+  - Los valores varían según carga del sistema
+- Medición de tiempo con `System.currentTimeMillis()`
+- Reset automático de contadores cada segundo
+- Separación lógica de medición FPS/UPS aunque ejecuten en el mismo ciclo
+- Base para futuras mejoras en control de timing
+- Todos los tipos primitivos de Java ahora soportados en Configuration
+- Character type usa `charAt(0)` para extraer primer carácter del string
+
 ## [0.2.3][0.2.3] - 2025-11-21
 
 ### Añadido
@@ -238,6 +287,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 - Build exitoso sin errores ni warnings
 - Código cumple 100% con reglas de Checkstyle
 
+[0.3.0]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.3.0
 [0.2.3]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.2.3
 [0.2.2]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.2.2
 [0.2.1]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.2.1

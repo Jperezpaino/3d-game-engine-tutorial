@@ -89,11 +89,58 @@ Long frameTime = GameSettings.GAME_FREQUENCY_TIME.get();
 
 ### Características
 
-- **Tipos soportados**: String, Integer, Long, Boolean, Double
+- **Tipos soportados**: Byte, Short, Integer, Long, Float, Double, Boolean, Character, String
 - **Sistema de caché**: Thread-safe con `ConcurrentHashMap`
 - **Valores por defecto**: Soporte para propiedades opcionales
 - **Singleton**: Instancia única accesible globalmente
 - **Optimizado**: Las conversiones se realizan solo una vez
+
+## Sistema de Medición de Rendimiento
+
+El motor incluye un sistema de medición de FPS (Frames Per Second) y UPS (Updates Per Second) que permite monitorear el rendimiento en tiempo real:
+
+### Implementación Actual (v0.3.0)
+
+La versión 0.3.0 implementa el enfoque **"Fixed Sleep"** que demuestra las bases de un game loop con medición de rendimiento:
+
+```java
+// Contadores de rendimiento
+int ups = 0;       // Updates por segundo
+int fps = 0;       // Frames por segundo
+long upsTime = 0;  // Timestamp para UPS
+long fpsTime = 0;  // Timestamp para FPS
+
+// En el game loop
+update();          // Actualizar lógica
+render();          // Renderizar frame
+Thread.sleep(16);  // Esperar ~16ms (objetivo: 60 FPS/UPS)
+```
+
+### Características del Sistema
+
+- **Medición en tiempo real**: Imprime estadísticas cada segundo en consola
+- **Contadores separados**: UPS y FPS se miden independientemente
+- **Fixed Sleep**: Tiempo de frame fijo configurado en `application.properties`
+- **Educativo**: Muestra las limitaciones de un enfoque simple de timing
+
+### Limitaciones Conocidas (Fixed Sleep)
+
+Este enfoque tiene limitaciones intencionales para propósitos educativos:
+
+- **UPS = FPS**: Ambos están acoplados al mismo ciclo
+- **No compensa overhead**: El tiempo de `update()` y `render()` reduce el frame rate efectivo
+- **No adaptativo**: No se ajusta a diferentes velocidades de hardware
+- **Variabilidad**: Los valores fluctúan debido a la carga del sistema
+
+### Ejemplo de Salida
+
+```
+UPS: 58 | FPS: 58
+UPS: 60 | FPS: 60
+UPS: 59 | FPS: 59
+```
+
+> **Nota**: Las siguientes versiones del motor introducirán mejoras progresivas en el sistema de timing para alcanzar un control profesional de FPS y UPS desacoplados.
 
 ## Pruebas
 
@@ -151,17 +198,18 @@ mvn checkstyle:check
   README.md
 ```
 
-## Ciclo de Vida de la Aplicacion
+## Ciclo de Vida de la Aplicación
 
 El motor de juego sigue un ciclo de vida claro y educativo:
 
-1. **Inicializacion (`init`)**: Configuracion de la ventana y recursos
-2. **Game Loop**: Bucle principal con actualizacion y renderizado
-   - `update()`: Actualiza la logica del juego
+1. **Inicialización (`init`)**: Configuración de la ventana y recursos
+2. **Game Loop**: Bucle principal con actualización y renderizado
+   - `update()`: Actualiza la lógica del juego
    - `render()`: Dibuja el frame actual
-3. **Limpieza (`cleanup`)**: Libera recursos y termina GLFW
+   - Medición de FPS/UPS en tiempo real
+3. **Limpieza (`close`)**: Libera recursos y termina GLFW
 
-Este patron enseña la importancia de la gestion correcta de recursos.
+Este patrón enseña la importancia de la gestión correcta de recursos.
 
 ## Convenciones de Código
 
