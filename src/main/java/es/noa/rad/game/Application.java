@@ -139,10 +139,16 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
           += ((currentTime - this.previousTime) / updateTime);
         this.previousTime = currentTime;
 
+        /* Updates with limit (maximum per frame). */
+        int updateCount = 0;
+
         /* Run all accumulated updates with fixed timestep. */
-        while (this.deltaTime >= 1.0D) {
+        while ((this.deltaTime >= 1.0D)
+            && (updateCount
+              < ((int) GameSettings.GAME_MAXIMUN_UPDATES_PER_FRAME.get()))) {
           this.update(fixedDeltaTime);
           this.deltaTime--;
+          updateCount++;
         }
 
         /* Render with interpolation alpha (0.0 to 1.0). */
