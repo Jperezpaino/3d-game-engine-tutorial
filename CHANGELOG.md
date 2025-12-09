@@ -5,6 +5,80 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2][0.3.2] - 2025-12-09
+
+### Añadido
+
+- **Implementación de Delta Time** en el game loop
+  - Variable `deltaTime` calculada como tiempo transcurrido entre frames en segundos
+  - Fórmula: `deltaTime = (currentTime - previousTime) / NANOSECONDS_IN_SECOND`
+  - Tipo `float` para balance entre precisión y rendimiento
+- **Constante `FRAMERATE`** en `Application`
+  - Valor por defecto: `60.0D` (double)
+  - Usado como fallback en `GameSettings.GAME_FRAMES_PER_SECOND.get(FRAMERATE)`
+- **Constante `NANOSECONDS_IN_SECOND`** en `Application`
+  - Valor: `TimeUnit.SECONDS.toNanos(1L)` = 1,000,000,000 nanosegundos
+  - Constante privada estática para reutilización
+  - Usada en cálculo de `renderTime` y `deltaTime`
+  - Mejora rendimiento: se calcula una vez en la carga de la clase
+- **Parámetro deltaTime en métodos de actualización**
+  - `Application.update(float deltaTime)` - Recibe y propaga deltaTime
+  - `Application.render(float deltaTime)` - Recibe y propaga deltaTime
+  - `Window.update(float deltaTime)` - Recibe deltaTime para lógica del juego
+  - `Window.render(float deltaTime)` - Recibe deltaTime para interpolación de renderizado
+
+### Cambiado
+
+- **Métodos `update()` y `render()` ahora reciben deltaTime**
+  - Antes: `update()` y `render()` sin parámetros
+  - Después: `update(float deltaTime)` y `render(float deltaTime)`
+  - Cambio aplicado en `Application` y `Window`
+- **Simplificación del cálculo de deltaTime**
+  - Variable redundante `currentTime = frameStartTime` eliminada
+  - Uso directo de `currentTime` capturado con `System.nanoTime()`
+  - Cálculo simplificado: `(currentTime - previousTime) / NANOSECONDS_IN_SECOND`
+- **Conversión optimizada de deltaTime**
+  - Eliminación de casts redundantes
+  - Cast solo en el divisor: `(float) NANOSECONDS_IN_SECOND`
+- **Debug output reducido en `Window`**
+  - Prints de deltaTime comentados/eliminados para evitar spam en consola
+  - Anteriormente imprimía 120 líneas/segundo (60 update + 60 render)
+- **Comparación de sleepTime mejorada**: `sleepTime > 0L` con sufijo long explícito
+- Versión actualizada de 0.3.1 a 0.3.2
+
+### Optimizado
+
+- **Extracción de constante `NANOSECONDS_IN_SECOND`**
+  - Evita llamadas repetidas a `TimeUnit.SECONDS.toNanos(1L)`
+  - Mejor legibilidad del código
+  - Principio DRY (Don't Repeat Yourself) aplicado
+  - Autodocumentación del valor (1 mil millones de nanosegundos = 1 segundo)
+
+### Notas Técnicas
+
+- **Delta Time**: Tiempo transcurrido entre frames expresado en segundos
+  - Valores típicos: ~0.0166 segundos (para 60 FPS)
+  - Permite actualizar movimientos: `posición += velocidad * deltaTime`
+  - Garantiza simulación consistente independiente del frame rate
+- **Independencia de hardware**: 
+  - Sistema rápido (120 FPS): deltaTime ~0.0083s, movimientos más frecuentes pero más pequeños
+  - Sistema lento (30 FPS): deltaTime ~0.0333s, movimientos menos frecuentes pero más grandes
+  - Resultado: misma distancia recorrida en ambos casos
+- **Precisión de float vs double**:
+  - `deltaTime` usa `float` para optimizar memoria y rendimiento
+  - Precisión suficiente para valores entre 0.001 y 1.0 segundos
+  - `float` tiene ~7 dígitos de precisión, adecuado para 0.0166
+- **Frame timing separado**:
+  - `frameStartTime`: captura tiempo al inicio del loop
+  - `previousTime`: usado solo para calcular deltaTime
+  - `elapsedTime`: tiempo total del frame (update + render)
+  - Evita acumulación de errores en medición
+- **Limitaciones restantes** (educativas):
+  - UPS y FPS siguen acoplados (mismo ciclo)
+  - Sin fixed timestep para física determinística
+  - Sin interpolación de renderizado
+  - Delta time no está "clamped" (puede ser muy grande si hay lag)
+
 ## [0.3.1][0.3.1] - 2025-12-09
 
 ### Añadido
@@ -346,6 +420,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 - Build exitoso sin errores ni warnings
 - Código cumple 100% con reglas de Checkstyle
 
+[0.3.2]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.3.2
 [0.3.1]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.3.1
 [0.3.0]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.3.0
 [0.2.3]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.2.3

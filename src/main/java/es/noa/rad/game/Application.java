@@ -30,6 +30,12 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
     /**
      *
      */
+    private static final long NANOSECONDS_IN_SECOND
+      = TimeUnit.SECONDS.toNanos(1L);
+
+    /**
+     *
+     */
     private final Thread game;
 
     /**
@@ -100,7 +106,7 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
 
       /* Establish the time that must elapse between each of the frames. */
       final double renderTime
-        = ((double) (TimeUnit.SECONDS.toNanos(1L)
+        = ((double) (Application.NANOSECONDS_IN_SECOND
         / ((double) (GameSettings.GAME_FRAMES_PER_SECOND
           .get(Application.FRAMERATE)))));
 
@@ -109,18 +115,19 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
        * close the window.
        */
       while (!Window.get().shouldClose()) {
-        final long frameStartTime = System.nanoTime();
-        final long currentTime = frameStartTime;
+        final long currentTime = System.nanoTime();
+
+        /* Calculate delta time in seconds. */
         final float deltaTime
-          = ((float) ((currentTime - this.previousTime)
-            / ((float) TimeUnit.SECONDS.toNanos(1L))));
+          = ((currentTime - this.previousTime)
+           / ((float) Application.NANOSECONDS_IN_SECOND));
         this.previousTime = currentTime;
 
         this.update(deltaTime);
         this.render(deltaTime);
 
         /* Calculate the time it took to generate the render and update. */
-        final long elapsedTime = System.nanoTime() - frameStartTime;
+        final long elapsedTime = System.nanoTime() - currentTime;
 
         /* Calculate how long we have to wait. */
         final long sleepTime

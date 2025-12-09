@@ -113,7 +113,7 @@ Thread.sleep(16);  // Esperar fijo ~16ms (objetivo: 60 FPS/UPS)
 
 **Limitaciones**: UPS=FPS acoplados, no compensa overhead de ejecución, frame rate variable.
 
-#### v0.3.1 - Frame Capping (Implementación Actual)
+#### v0.3.1 - Frame Capping
 
 La versión 0.3.1 introduce **"Frame Capping"** con medición dinámica del tiempo entre frames:
 
@@ -138,31 +138,95 @@ if (sleepTime > 0) {
 previousTime = System.nanoTime();
 ```
 
-### Características del Sistema (v0.3.1)
+**Mejoras**: Compensación dinámica del overhead, frame rate más estable, alta precisión con nanosegundos.
 
-- **Medición en tiempo real**: Imprime estadísticas cada segundo en consola
-- **Contadores separados**: UPS y FPS se miden independientemente
+#### v0.3.2 - Delta Time (Implementación Actual)
+
+La versión 0.3.2 añade **"Delta Time"** para movimientos independientes del frame rate:
+
+```java
+// Constante para conversión de nanosegundos a segundos
+private static final long NANOSECONDS_IN_SECOND = TimeUnit.SECONDS.toNanos(1L); // 1,000,000,000
+
+// Configuración inicial
+double renderTime = NANOSECONDS_IN_SECOND / framesPerSecond;
+long previousTime = System.nanoTime();
+
+// En el game loop
+long currentTime = System.nanoTime();
+
+// Calcular Delta Time en segundos
+float deltaTime = (currentTime - previousTime) / (float) NANOSECONDS_IN_SECOND;
+previousTime = currentTime;
+
+// Pasar deltaTime a update y render
+update(deltaTime);  // Lógica usa deltaTime
+render(deltaTime);  // Renderizado usa deltaTime
+
+// Calcular tiempo del frame
+long elapsedTime = System.nanoTime() - currentTime;
+
+// Sleep dinámico
+long sleepTime = (renderTime - elapsedTime) / TimeUnit.MILLISECONDS.toNanos(1L);
+if (sleepTime > 0L) {
+    Thread.sleep(sleepTime);
+}
+```
+
+### Características del Sistema (v0.3.2)
+
+- **Delta Time implementado**: Tiempo transcurrido entre frames en segundos (tipo `float`)
+- **Constante extraída**: `NANOSECONDS_IN_SECOND` evita cálculos repetidos (DRY principle)
+- **Movimientos independientes del FPS**: Los objetos se mueven la misma distancia independientemente del frame rate
+- **Propagación de deltaTime**: `update(deltaTime)` y `render(deltaTime)` reciben el valor
+- **Código simplificado**: Eliminadas variables redundantes y casts innecesarios
+- **Mejor rendimiento**: Constante calculada una sola vez al cargar la clase
+- **Medición en tiempo real**: Imprime estadísticas FPS/UPS cada segundo
 - **Frame Capping**: Ajusta el sleep dinámicamente según el tiempo real de ejecución
-- **Compensación de overhead**: Resta el tiempo de `update()` y `render()` del sleep
 - **Alta precisión**: Usa `System.nanoTime()` para medición en nanosegundos
 - **Configurable**: FPS objetivo definido en `application.properties` (60.0 por defecto)
-- **Robusto**: Valor por defecto de 60.0 FPS si falta la configuración
-- **Consistencia de tipos**: Comparación correcta de tipos (`long > 0` en lugar de `> 0.0F`)
+- **Robusto**: Valor por defecto `FRAMERATE = 60.0D` si falta la configuración
 
-### Mejoras sobre Fixed Sleep
+### Ventajas del Delta Time
 
-- ✅ **Compensación dinámica**: El sleep se ajusta según el overhead real
-- ✅ **Mayor precisión**: Uso de nanosegundos en lugar de milisegundos
-- ✅ **Frame rate más estable**: Reduce variabilidad en el timing
-- ✅ **Configurable**: FPS objetivo se lee desde configuración
+- ✅ **Independencia de hardware**: Mismo comportamiento en PCs rápidos y lentos
+- ✅ **Simulación consistente**: `posición += velocidad * deltaTime`
+- ✅ **Suavidad garantizada**: Los movimientos son proporcionales al tiempo real
+- ✅ **Base para física realista**: Permite implementar física determinística
 
-### Limitaciones Conocidas (Frame Capping)
+### Optimizaciones Aplicadas
+
+- **Constante `NANOSECONDS_IN_SECOND`**: 
+  - Valor precalculado: 1,000,000,000 nanosegundos
+  - Se calcula una vez al cargar la clase
+  - Evita llamadas repetidas a `TimeUnit.SECONDS.toNanos(1L)`
+  - Mejora legibilidad: nombre autodocumentado
+  - Principio DRY aplicado
+
+### Ejemplo de Uso
+
+```java
+// Sin Delta Time (Incorrecto - dependiente del FPS)
+position += velocity;  // Se mueve más rápido a mayor FPS
+
+// Con Delta Time (Correcto - independiente del FPS)
+position += velocity * deltaTime;  // Movimiento consistente
+
+// Ejemplo práctico:
+// velocidad = 100 unidades/segundo
+// A 60 FPS: deltaTime ≈ 0.0166s → movimiento = 100 * 0.0166 = 1.66 unidades/frame
+// A 30 FPS: deltaTime ≈ 0.0333s → movimiento = 100 * 0.0333 = 3.33 unidades/frame
+// Resultado: 100 unidades por segundo en ambos casos
+```
+
+### Limitaciones Conocidas (Delta Time)
 
 Este enfoque aún tiene limitaciones educativas:
 
 - **UPS = FPS**: Ambos siguen acoplados al mismo ciclo
 - **No recupera frames perdidos**: Si un frame tarda más que `renderTime`, no compensa
-- **Sin delta time**: Los movimientos no se ajustan según el tiempo real transcurrido
+- **Sin fixed timestep**: Física no es completamente determinística
+- **Delta time sin límite**: Puede ser muy grande si hay lag (sin "clamping")
 - **Sleep no es preciso**: `Thread.sleep()` tiene variabilidad del sistema operativo
 
 ### Ejemplo de Salida
@@ -174,7 +238,7 @@ Updates Per Second (UPS): 60
 Frames Per Second (FPS): 60
 ```
 
-> **Nota**: Las siguientes versiones introducirán UPS desacoplado de FPS, delta time, y técnicas avanzadas de sincronización para lograr un control profesional del game loop.
+> **Nota**: Los debug prints de deltaTime en `Window.update()` y `Window.render()` están comentados para evitar spam en consola. Las siguientes versiones introducirán UPS desacoplado de FPS, fixed timestep para física determinística, y técnicas avanzadas de sincronización para lograr un control profesional del game loop.
 
 ## Pruebas
 
