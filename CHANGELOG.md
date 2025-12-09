@@ -5,6 +5,65 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1][0.3.1] - 2025-12-09
+
+### Añadido
+
+- **Sistema de Frame Capping con timing dinámico**
+  - Campo `long previousTime` para almacenar timestamp del frame anterior
+  - Inicialización de `previousTime` con `System.nanoTime()` en constructor
+  - Cálculo de `renderTime` objetivo basado en FPS configurado
+  - Variable `elapsedTime` para medir tiempo real entre frames
+  - Cálculo dinámico de `sleepTime` que compensa el overhead de ejecución
+- **Nueva propiedad de configuración**
+  - `game.frames.per.second` - FPS objetivo (Double) en `application.properties`
+  - Valor por defecto: 60.0 FPS
+- **Enum `GAME_FRAMES_PER_SECOND`** en `GameSettings`
+  - Tipo `Double.class` para mayor precisión
+  - Reemplaza `GAME_FREQUENCY_TIME` (Long)
+
+### Cambiado
+
+- **Game loop ahora usa Frame Capping** en lugar de Fixed Sleep
+  - Calcula `renderTime = TimeUnit.SECONDS.toNanos(1L) / framesPerSecond`
+  - Mide tiempo transcurrido: `elapsedTime = System.nanoTime() - previousTime`
+  - Ajusta sleep dinámicamente: `sleepTime = (renderTime - elapsedTime) / toNanos(1L)`
+  - Solo hace `Thread.sleep(sleepTime)` si `sleepTime > 0`
+  - Actualiza `previousTime = System.nanoTime()` después de cada iteración
+- **Medición de tiempo de alta precisión**
+  - De `System.currentTimeMillis()` a `System.nanoTime()` para el game loop
+  - Precisión en nanosegundos en lugar de milisegundos
+- **Separación de salida en consola**
+  - `update()` ahora imprime solo "Updates Per Second (UPS): X"
+  - `render()` ahora imprime solo "Frames Per Second (FPS): Y"
+  - Salidas independientes en lugar de formato combinado
+- **Valor por defecto añadido** en `GAME_FRAMES_PER_SECOND.get(60.0)` para mayor robustez
+- **Comparación corregida**: `sleepTime > 0` (long) en lugar de `> 0.0F` (float) para consistencia de tipos
+- Versión actualizada de 0.3.0 a 0.3.1
+
+### Eliminado
+
+- Propiedad `game.frequency.time` (reemplazada por `game.frames.per.second`)
+- Enum `GAME_FREQUENCY_TIME` (reemplazado por `GAME_FRAMES_PER_SECOND`)
+- Sleep fijo de 16ms (reemplazado por cálculo dinámico)
+
+### Notas Técnicas
+
+- **Frame Capping**: Técnica que ajusta el sleep según el tiempo real de ejecución
+  - Compensa el overhead de `update()` y `render()`
+  - Mantiene frame rate más estable que Fixed Sleep
+  - Usa conversión de nanosegundos: `TimeUnit.SECONDS.toNanos(1L)` y `TimeUnit.MILLISECONDS.toNanos(1L)`
+- **Alta precisión**: `System.nanoTime()` proporciona precisión a nivel de nanosegundos
+- **Cálculo de renderTime**: Se calcula una vez al inicio del loop
+  - Fórmula: `1 segundo en nanosegundos / FPS objetivo`
+  - Ejemplo: `1,000,000,000 ns / 60 FPS = 16,666,666 ns por frame`
+- **Limitaciones conocidas** (educativas):
+  - UPS y FPS siguen acoplados al mismo ciclo
+  - No recupera frames perdidos si `elapsedTime > renderTime`
+  - `Thread.sleep()` tiene variabilidad del sistema operativo (1-15ms típicamente)
+  - Sin implementación de delta time para movimientos independientes del frame rate
+- Mejora progresiva hacia control profesional de game loop
+
 ## [0.3.0][0.3.0] - 2025-12-09
 
 ### Añadido
@@ -287,6 +346,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 - Build exitoso sin errores ni warnings
 - Código cumple 100% con reglas de Checkstyle
 
+[0.3.1]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.3.1
 [0.3.0]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.3.0
 [0.2.3]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.2.3
 [0.2.2]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.2.2

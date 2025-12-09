@@ -25,6 +25,11 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
     /**
      *
      */
+    public static final double FRAMERATE = 60.0D;
+
+    /**
+     *
+     */
     private final Thread game;
 
     /**
@@ -96,7 +101,7 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
       /* Establish the time that must elapse between each of the frames. */
       final double renderTime
         = ((double) (TimeUnit.SECONDS.toNanos(1L)
-        / ((double) (GameSettings.GAME_FRAMES_PER_SECOND.get()))));
+        / ((double) (GameSettings.GAME_FRAMES_PER_SECOND.get(Applicarion.FRAMERATE)))));
 
       /*
        * Run the rendering and updating loop until the user has attempted to
@@ -113,7 +118,7 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
         final long sleepTime
           = ((long) ((renderTime - elapsedTime)
           / TimeUnit.MILLISECONDS.toNanos(1L)));
-        if (sleepTime > 0.0F) {
+        if (sleepTime > 0L) {
           try {
             Thread.sleep(sleepTime);
           } catch (

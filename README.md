@@ -56,7 +56,7 @@ window.height = 720
 window.title = 3D Game Engine Tutorial
 
 # Game Loop Configuration
-game.frequency.time = 16
+game.frames.per.second = 60.0
 ```
 
 ### Uso de Configuration
@@ -75,8 +75,8 @@ String title = WindowSettings.WINDOW_TITLE.get();
 // Usar valores por defecto si la propiedad no existe
 Integer width = WindowSettings.WINDOW_WIDTH.get(1280);
 
-// Usar GameSettings para propiedades del juego
-Long frameTime = GameSettings.GAME_FREQUENCY_TIME.get();
+// Usar GameSettings para propiedades del juego (con valor por defecto)
+Double framesPerSecond = GameSettings.GAME_FRAMES_PER_SECOND.get(60.0);
 ```
 
 #### Ventajas del sistema de enums:
@@ -97,50 +97,84 @@ Long frameTime = GameSettings.GAME_FREQUENCY_TIME.get();
 
 ## Sistema de Medición de Rendimiento
 
-El motor incluye un sistema de medición de FPS (Frames Per Second) y UPS (Updates Per Second) que permite monitorear el rendimiento en tiempo real:
+El motor incluye un sistema de medición de FPS (Frames Per Second) y UPS (Updates Per Second) que permite monitorear el rendimiento en tiempo real.
 
-### Implementación Actual (v0.3.0)
+### Evolución del Sistema de Timing
 
-La versión 0.3.0 implementa el enfoque **"Fixed Sleep"** que demuestra las bases de un game loop con medición de rendimiento:
+#### v0.3.0 - Fixed Sleep
+
+La versión 0.3.0 implementó el enfoque **"Fixed Sleep"** básico:
 
 ```java
-// Contadores de rendimiento
-int ups = 0;       // Updates por segundo
-int fps = 0;       // Frames por segundo
-long upsTime = 0;  // Timestamp para UPS
-long fpsTime = 0;  // Timestamp para FPS
-
-// En el game loop
 update();          // Actualizar lógica
 render();          // Renderizar frame
-Thread.sleep(16);  // Esperar ~16ms (objetivo: 60 FPS/UPS)
+Thread.sleep(16);  // Esperar fijo ~16ms (objetivo: 60 FPS/UPS)
 ```
 
-### Características del Sistema
+**Limitaciones**: UPS=FPS acoplados, no compensa overhead de ejecución, frame rate variable.
+
+#### v0.3.1 - Frame Capping (Implementación Actual)
+
+La versión 0.3.1 introduce **"Frame Capping"** con medición dinámica del tiempo entre frames:
+
+```java
+// Configuración inicial
+double renderTime = TimeUnit.SECONDS.toNanos(1L) / framesPerSecond;
+long previousTime = System.nanoTime();
+
+// En el game loop
+update();
+render();
+
+// Calcular tiempo transcurrido
+long elapsedTime = System.nanoTime() - previousTime;
+
+// Calcular sleep dinámico
+long sleepTime = (renderTime - elapsedTime) / TimeUnit.MILLISECONDS.toNanos(1L);
+if (sleepTime > 0) {
+    Thread.sleep(sleepTime);
+}
+
+previousTime = System.nanoTime();
+```
+
+### Características del Sistema (v0.3.1)
 
 - **Medición en tiempo real**: Imprime estadísticas cada segundo en consola
 - **Contadores separados**: UPS y FPS se miden independientemente
-- **Fixed Sleep**: Tiempo de frame fijo configurado en `application.properties`
-- **Educativo**: Muestra las limitaciones de un enfoque simple de timing
+- **Frame Capping**: Ajusta el sleep dinámicamente según el tiempo real de ejecución
+- **Compensación de overhead**: Resta el tiempo de `update()` y `render()` del sleep
+- **Alta precisión**: Usa `System.nanoTime()` para medición en nanosegundos
+- **Configurable**: FPS objetivo definido en `application.properties` (60.0 por defecto)
+- **Robusto**: Valor por defecto de 60.0 FPS si falta la configuración
+- **Consistencia de tipos**: Comparación correcta de tipos (`long > 0` en lugar de `> 0.0F`)
 
-### Limitaciones Conocidas (Fixed Sleep)
+### Mejoras sobre Fixed Sleep
 
-Este enfoque tiene limitaciones intencionales para propósitos educativos:
+- ✅ **Compensación dinámica**: El sleep se ajusta según el overhead real
+- ✅ **Mayor precisión**: Uso de nanosegundos en lugar de milisegundos
+- ✅ **Frame rate más estable**: Reduce variabilidad en el timing
+- ✅ **Configurable**: FPS objetivo se lee desde configuración
 
-- **UPS = FPS**: Ambos están acoplados al mismo ciclo
-- **No compensa overhead**: El tiempo de `update()` y `render()` reduce el frame rate efectivo
-- **No adaptativo**: No se ajusta a diferentes velocidades de hardware
-- **Variabilidad**: Los valores fluctúan debido a la carga del sistema
+### Limitaciones Conocidas (Frame Capping)
+
+Este enfoque aún tiene limitaciones educativas:
+
+- **UPS = FPS**: Ambos siguen acoplados al mismo ciclo
+- **No recupera frames perdidos**: Si un frame tarda más que `renderTime`, no compensa
+- **Sin delta time**: Los movimientos no se ajustan según el tiempo real transcurrido
+- **Sleep no es preciso**: `Thread.sleep()` tiene variabilidad del sistema operativo
 
 ### Ejemplo de Salida
 
 ```
-UPS: 58 | FPS: 58
-UPS: 60 | FPS: 60
-UPS: 59 | FPS: 59
+Updates Per Second (UPS): 60
+Frames Per Second (FPS): 60
+Updates Per Second (UPS): 60
+Frames Per Second (FPS): 60
 ```
 
-> **Nota**: Las siguientes versiones del motor introducirán mejoras progresivas en el sistema de timing para alcanzar un control profesional de FPS y UPS desacoplados.
+> **Nota**: Las siguientes versiones introducirán UPS desacoplado de FPS, delta time, y técnicas avanzadas de sincronización para lograr un control profesional del game loop.
 
 ## Pruebas
 
