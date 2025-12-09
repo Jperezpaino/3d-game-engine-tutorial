@@ -112,20 +112,22 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
 
       /* Establish the time that must elapse between each of the frames. */
       final double renderTime
-        = ((double) (Application.NANOSECONDS_IN_SECOND
-        / ((double) GameSettings.GAME_FRAMES_PER_SECOND
-          .get(Application.FRAMERATE))));
+        = (Application.NANOSECONDS_IN_SECOND
+        / GameSettings.GAME_FRAMES_PER_SECOND.get(Application.FRAMERATE));
 
       /* Establish the time that must elapse between each update. */
       final double updateTime
-        = ((double) (Application.NANOSECONDS_IN_SECOND
-        / ((double) GameSettings.GAME_UPDATES_PER_SECOND
-          .get(Application.FRAMERATE))));
+        = (Application.NANOSECONDS_IN_SECOND
+        / GameSettings.GAME_UPDATES_PER_SECOND.get(Application.FRAMERATE));
 
       /* Fixed timestep for deterministic updates. */
       final float fixedDeltaTime
-        = ((float) (1.0D / ((double) GameSettings.GAME_UPDATES_PER_SECOND
-          .get(Application.FRAMERATE))));
+        = (float) (1.0D / GameSettings.GAME_UPDATES_PER_SECOND
+          .get(Application.FRAMERATE));
+
+      /* Maximum updates per frame (spiral of death protection). */
+      final int maxUpdatesPerFrame
+        = GameSettings.GAME_MAXIMUM_UPDATES_PER_FRAME.get(5);
 
       /*
        * Run the rendering and updating loop until the user has attempted to
@@ -139,13 +141,13 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
           += ((currentTime - this.previousTime) / updateTime);
         this.previousTime = currentTime;
 
-        /* Updates with limit (maximum per frame). */
+        /*
+         * Run all accumulated updates with fixed timestep.
+         * Limit updates per frame to prevent spiral of death.
+         */
         int updateCount = 0;
-
-        /* Run all accumulated updates with fixed timestep. */
         while ((this.deltaTime >= 1.0D)
-            && (updateCount
-              < ((int) GameSettings.GAME_MAXIMUN_UPDATES_PER_FRAME.get()))) {
+            && (updateCount < maxUpdatesPerFrame)) {
           this.update(fixedDeltaTime);
           this.deltaTime--;
           updateCount++;

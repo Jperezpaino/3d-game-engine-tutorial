@@ -58,6 +58,7 @@ window.title = 3D Game Engine Tutorial
 # Game Loop Configuration
 game.frames.per.second = 60.0
 game.updates.per.second = 60.0
+game.maximum.updates.per.frame = 5
 ```
 
 ### Uso de Configuration
@@ -79,6 +80,7 @@ Integer width = WindowSettings.WINDOW_WIDTH.get(1280);
 // Usar GameSettings para propiedades del juego (con valores por defecto)
 Double framesPerSecond = GameSettings.GAME_FRAMES_PER_SECOND.get(60.0);
 Double updatesPerSecond = GameSettings.GAME_UPDATES_PER_SECOND.get(60.0);
+Integer maxUpdatesPerFrame = GameSettings.GAME_MAXIMUM_UPDATES_PER_FRAME.get(5);
 ```
 
 #### Ventajas del sistema de enums:
@@ -223,7 +225,7 @@ position += velocity * deltaTime;  // Movimiento consistente
 
 **Limitaciones**: UPS=FPS acoplados, sin fixed timestep, física no determinística.
 
-#### v0.3.3 - Fixed Timestep para Updates (Implementación Actual)
+#### v0.3.3 - Fixed Timestep para Updates
 
 La versión 0.3.3 introduce **"Fixed Timestep"** separando completamente updates de renders:
 
@@ -318,14 +320,132 @@ void render(float alpha) {
 // Resultado: movimiento visual suave incluso con updates discretos
 ```
 
-### Limitaciones Conocidas (Fixed Timestep)
+**Limitaciones**: Sin spiral of death protection, puede congelarse en hardware muy lento.
+
+#### v0.3.4 - Final Delta Time con Spiral of Death Protection (Implementación Actual)
+
+La versión 0.3.4 añade **protección contra "Spiral of Death"** limitando updates por frame:
+
+```java
+// Configuración inicial (calculado una vez)
+double renderTime = NANOSECONDS_IN_SECOND / framesPerSecond;
+double updateTime = NANOSECONDS_IN_SECOND / updatesPerSecond;
+float fixedDeltaTime = (float) (1.0 / updatesPerSecond);  // Timestep fijo
+double deltaTime = 0.0;  // Acumulador
+long previousTime = System.nanoTime();
+int maxUpdatesPerFrame = GameSettings.GAME_MAXIMUM_UPDATES_PER_FRAME.get(5);  // 5 por defecto
+
+// En el game loop
+long currentTime = System.nanoTime();
+
+// Acumular tiempo en "unidades de update"
+deltaTime += (currentTime - previousTime) / updateTime;
+previousTime = currentTime;
+
+// Limitar updates por frame (Spiral of Death Protection)
+int updateCount = 0;
+while ((deltaTime >= 1.0) && (updateCount < maxUpdatesPerFrame)) {
+    update(fixedDeltaTime);  // Siempre el mismo valor: 0.0166s
+    deltaTime--;
+    updateCount++;  // Incrementar contador
+}
+
+// Renderizar con valor de interpolación (0.0 a 1.0)
+render((float) deltaTime);
+
+// Sleep dinámico basado en renderTime
+long elapsedTime = System.nanoTime() - currentTime;
+long sleepTime = (renderTime - elapsedTime) / TimeUnit.MILLISECONDS.toNanos(1L);
+if (sleepTime > 0L) {
+    Thread.sleep(sleepTime);
+}
+```
+
+### Características del Sistema (v0.3.4)
+
+- **Spiral of Death Protection**: Límite máximo de 5 updates por frame
+- **Contador de updates**: `int updateCount` rastrea iteraciones del loop
+- **Condición doble**: Loop verifica tiempo acumulado Y límite de updates
+- **Configuración flexible**: `game.maximun.updates.per.frame = 5` en properties
+- **Enum adicional**: `GAME_MAXIMUN_UPDATES_PER_FRAME` en GameSettings
+- **Aplicación siempre responde**: Nunca se congela, incluso en hardware muy lento
+- **Trade-off inteligente**: Sacrifica precisión física por fluidez visual si es necesario
+- Todas las características de v0.3.3 (Fixed Timestep, UPS/FPS independientes, etc.)
+
+### El Problema del Spiral of Death
+
+El **Spiral of Death** es un problema clásico de Fixed Timestep que ocurre cuando:
+
+1. Un update tarda más tiempo que el timestep fijo (ej: update de 16.6ms tarda 20ms)
+2. El acumulador crece más rápido de lo que puede procesarse
+3. El loop `while (deltaTime >= 1.0)` intenta hacer catch-up infinito
+4. Cada update adicional hace el sistema aún más lento
+5. La aplicación se congela ejecutando solo updates, nunca renders
+
+**Ejemplo sin protección:**
+```
+Frame 1: 1 update tarda 20ms → acumula 3ms extra
+Frame 2: Necesita 1 update, pero tarda 20ms → acumula 6ms extra
+Frame 3: Necesita 1 update, pero tarda 20ms → acumula 9ms extra
+Frame 4: Necesita 2 updates, tardan 40ms → acumula 26ms extra
+Frame 5: Necesita 2 updates, tardan 40ms → acumula 43ms extra
+Frame N: Infinitos updates, aplicación congelada ❌
+```
+
+### La Solución Implementada
+
+**Límite de 5 updates por frame:**
+```
+Frame 1: deltaTime=8.5 → ejecuta 5 updates → deltaTime=3.5 → LÍMITE → render
+Frame 2: deltaTime=5.8 → ejecuta 5 updates → deltaTime=0.8 → LÍMITE → render
+Frame 3: deltaTime=1.2 → ejecuta 1 update  → deltaTime=0.2 → render normal
+```
+
+✅ La aplicación siempre renderiza, mantiene respuesta visual
+✅ Input del usuario sigue siendo procesado
+✅ UI no se congela
+⚠️ En hardware muy lento, física puede "saltar" frames
+
+### Ventajas de la Protección
+
+- ✅ **Nunca se congela**: Aplicación siempre responde
+- ✅ **Balance automático**: Entre precisión física y fluidez visual
+- ✅ **Configurable**: Ajustar `game.maximun.updates.per.frame` según necesidades
+- ✅ **Degradación elegante**: En lugar de crash, funciona con precisión reducida
+- ✅ **Hardware tolerante**: Funciona desde PCs lentos hasta potentes
+
+### Ejemplo de Comportamiento
+
+```
+Hardware rápido (144 FPS, 60 UPS):
+- Updates por frame: 0-1
+- Límite nunca se alcanza
+- Funcionamiento óptimo
+
+Hardware normal (60 FPS, 60 UPS):
+- Updates por frame: 1
+- Límite nunca se alcanza
+- Funcionamiento óptimo
+
+Hardware lento (20 FPS, 60 UPS):
+- Updates por frame: 3
+- Límite alcanzado ocasionalmente
+- Funcionamiento aceptable
+
+Hardware muy lento (10 FPS, 60 UPS):
+- Updates por frame: 5 (límite)
+- Física pierde precisión, pero app responde
+- Funcionamiento degradado pero estable
+```
+
+### Limitaciones Restantes
 
 Este enfoque aún tiene limitaciones educativas:
 
-- **Sin spiral of death protection**: No limita máximo de updates por frame
 - **Interpolación no implementada**: `Window` recibe alpha pero no interpola aún
 - **Sin estados separados**: No guarda posición anterior para interpolación real
 - **Sleep no es preciso**: `Thread.sleep()` tiene variabilidad del sistema operativo
+- **Sin VSync**: Implementación futura usará sincronización vertical (más eficiente para LWJGL)
 
 ### Ejemplo de Salida
 
@@ -336,7 +456,7 @@ Updates Per Second (UPS): 60
 Frames Per Second (FPS): 143
 ```
 
-> **Nota**: Ahora UPS y FPS pueden tener valores diferentes. Las siguientes versiones implementarán interpolación real, spiral of death protection, y optimizaciones adicionales para un game loop de nivel profesional.
+> **Nota**: Esta implementación de "Delta Time Final" completa el sistema de timing básico con protección profesional. Las siguientes versiones explorarán VSync y técnicas más eficientes específicas de LWJGL para optimizar el rendimiento.
 
 ## Pruebas
 

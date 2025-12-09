@@ -5,6 +5,102 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.4][0.3.4] - 2025-12-09
+
+### Añadido
+
+- **Protección contra Spiral of Death**
+  - Campo `int updateCount = 0` antes del loop de updates
+  - Contador reiniciado antes de cada ciclo de catch-up
+  - Límite máximo de updates por frame
+- **Nueva propiedad de configuración**
+  - `game.maximum.updates.per.frame` - Límite de updates (Integer) en `application.properties`
+  - Valor por defecto: 5 updates máximo por frame
+  - Previene bucles infinitos en sistemas muy lentos
+- **Enum `GAME_MAXIMUM_UPDATES_PER_FRAME`** en `GameSettings`
+  - Tipo `Integer.class` para límite discreto
+  - Complementa configuración de FPS y UPS
+  - Método `.get(5)` con valor por defecto para robustez
+- **Condición doble en loop de updates**
+  - Antes: `while (deltaTime >= 1.0D)`
+  - Después: `while ((deltaTime >= 1.0D) && (updateCount < maxUpdatesPerFrame))`
+  - Primera condición: hay tiempo acumulado para update
+  - Segunda condición: no se ha alcanzado el límite de updates
+  - Variable `maxUpdatesPerFrame` precalculada con valor por defecto
+- **Incremento de contador**: `updateCount++` después de cada `update()`
+
+### Cambiado
+
+- **Loop de updates ahora limitado**
+  - Si el sistema es muy lento, solo ejecuta máximo 5 updates
+  - Después abandona el catch-up y continúa con el render
+  - Sacrifica precisión física temporal para mantener respuesta visual
+- Versión actualizada de 0.3.3 a 0.3.4
+
+### Protegido
+
+- **Prevención de Spiral of Death**
+  - Sin protección: Sistema lento → más updates → más lento → infinitos updates → crash
+  - Con protección: Sistema lento → 5 updates máximo → render continúa → aplicación responde
+  - Trade-off: Física puede "saltar" frames en hardware muy lento, pero la app no se congela
+
+### Notas Técnicas
+
+- **Spiral of Death**: Problema clásico de Fixed Timestep
+  - Ocurre cuando un update tarda más que el timestep fijo
+  - Ejemplo: Update de 60 Hz (16.6ms) tarda 20ms en ejecutarse
+  - Acumulador crece más rápido de lo que puede procesarse
+  - Loop `while (deltaTime >= 1.0)` intenta catch-up infinito
+  - Sistema queda congelado ejecutando solo updates, nunca renders
+- **Solución implementada**:
+  - Contador `updateCount` limita iteraciones del loop
+  - Valor configurable: `game.maximum.updates.per.frame = 5`
+  - Variable precalculada con valor por defecto: `get(5)`
+  - Casting innecesarios eliminados para mejor legibilidad
+  - Permite hasta 5 updates consecutivos antes de forzar un render
+  - Si el límite se alcanza, `deltaTime` mantiene su valor alto
+  - Próximo frame continuará con el tiempo acumulado restante
+- **Trade-offs de la protección**:
+  - ✅ Aplicación siempre responde, nunca se congela
+  - ✅ UI y renderizado mantienen fluidez visual
+  - ✅ Input del usuario sigue siendo procesado
+  - ⚠️ En hardware muy lento, física puede perder precisión temporal
+  - ⚠️ Objetos pueden "saltar" posiciones si se saltan updates
+- **Cuándo se activa**:
+  - Sistema ejecutando otras aplicaciones pesadas
+  - Hardware por debajo de especificaciones mínimas
+  - Algoritmos de update no optimizados (O(n²), etc.)
+  - Carga de recursos bloqueante durante update
+- **Ejemplo de comportamiento**:
+  ```
+  Frame 1: deltaTime=8.5 → 5 updates → deltaTime=3.5 → LÍMITE → render
+  Frame 2: deltaTime=5.8 → 5 updates → deltaTime=0.8 → LÍMITE → render
+  Frame 3: deltaTime=1.2 → 1 update → deltaTime=0.2 → render (normal)
+  ```
+- **Valor de 5 updates**: Balance entre catch-up y protección
+  - 1-2 updates: Muy conservador, pierde mucha precisión
+  - 5 updates: Buena tolerancia a picos de lag temporal
+  - 10+ updates: Protección débil, puede congelar visualmente
+- **Alternativas no implementadas** (para versiones futuras):
+  - Max frame time: Si un frame tarda >100ms, descartar acumulador
+  - Variable timestep fallback: Cambiar a delta time variable en crisis
+  - Pause physics: Detener simulación si no puede mantenerse
+  - VSync: Sincronización con GPU (más eficiente para LWJGL)
+
+### Limitaciones Resueltas
+
+- ✅ Spiral of Death ya no puede congelar la aplicación
+- ✅ Sistema responde incluso en hardware muy lento
+- ✅ Balance entre precisión física y fluidez visual
+
+### Limitaciones Restantes
+
+- ⏳ Interpolación no implementada en `Window` (solo valor pasado)
+- ⏳ VSync no utilizado (implementación considera ineficiente para LWJGL)
+- ⏳ Thread.sleep() tiene limitaciones de precisión del SO
+
+> **Nota**: Esta implementación de "Delta Time Final" completa el sistema de timing básico. Las siguientes versiones explorarán VSync y técnicas más eficientes específicas de LWJGL.
+
 ## [0.3.3][0.3.3] - 2025-12-09
 
 ### Añadido
@@ -515,6 +611,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 - Build exitoso sin errores ni warnings
 - Código cumple 100% con reglas de Checkstyle
 
+[0.3.4]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.3.4
 [0.3.3]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.3.3
 [0.3.2]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.3.2
 [0.3.1]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.3.1
