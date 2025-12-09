@@ -101,18 +101,26 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
       /* Establish the time that must elapse between each of the frames. */
       final double renderTime
         = ((double) (TimeUnit.SECONDS.toNanos(1L)
-        / ((double) (GameSettings.GAME_FRAMES_PER_SECOND.get(Applicarion.FRAMERATE)))));
+        / ((double) (GameSettings.GAME_FRAMES_PER_SECOND
+          .get(Application.FRAMERATE)))));
 
       /*
        * Run the rendering and updating loop until the user has attempted to
        * close the window.
        */
       while (!Window.get().shouldClose()) {
-        this.update();
-        this.render();
+        final long frameStartTime = System.nanoTime();
+        final long currentTime = frameStartTime;
+        final float deltaTime
+          = ((float) ((currentTime - this.previousTime)
+            / ((float) TimeUnit.SECONDS.toNanos(1L))));
+        this.previousTime = currentTime;
+
+        this.update(deltaTime);
+        this.render(deltaTime);
 
         /* Calculate the time it took to generate the render and update. */
-        final long elapsedTime = System.nanoTime() - this.previousTime;
+        final long elapsedTime = System.nanoTime() - frameStartTime;
 
         /* Calculate how long we have to wait. */
         final long sleepTime
@@ -126,8 +134,6 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
             interruptedException.printStackTrace();
           }
         }
-
-        this.previousTime = System.nanoTime();
       }
 
       this.close();
@@ -135,9 +141,11 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
 
     /**
      *
+     * @param _deltaTime {@code float}
      */
-    private void update() {
-      Window.get().update();
+    private void update(
+        final float _deltaTime) {
+      Window.get().update(_deltaTime);
       this.increaseUps();
       final long currentTime = System.currentTimeMillis();
       if (currentTime > this.upsTime) {
@@ -152,9 +160,11 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
 
     /**
      *
+     * @param _deltaTime {@code float}
      */
-    private void render() {
-      Window.get().render();
+    private void render(
+        final float _deltaTime) {
+      Window.get().render(_deltaTime);
       this.increaseFps();
       final long currentTime = System.currentTimeMillis();
       if (currentTime > this.fpsTime) {

@@ -122,8 +122,14 @@ import org.lwjgl.system.MemoryUtil;
 
     /**
      *
+     * @param _deltaTime {@code float}
      */
-    public void update() {
+    public void update(
+        final float _deltaTime) {
+      System.out.printf(
+        "Updating Game! Delta: %.4f.%n",
+        _deltaTime
+      );
       /*
        * Poll for window events. The key callback above will only be invoked
        * during this call.
@@ -133,8 +139,14 @@ import org.lwjgl.system.MemoryUtil;
 
     /**
      *
+     * @param _deltaTime {@code float}
      */
-    public void render() {
+    public void render(
+        final float _deltaTime) {
+      System.out.printf(
+        "Rendering Game! Delta: %.4f.%n",
+        _deltaTime
+      );
       /* Swap the window buffers. */
       GLFW.glfwSwapBuffers(this.glfwWindow);
     }
