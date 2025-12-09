@@ -30,6 +30,11 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
     /**
      *
      */
+    private long previousTime;
+
+    /**
+     *
+     */
     private int ups;
 
     /**
@@ -57,6 +62,7 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
       this.resetFps();
       this.resetFpsTime();
       this.game = new Thread(this, "Game");
+      this.previousTime = System.nanoTime();
       this.game.start();
     }
 
@@ -87,6 +93,11 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
     public void run() {
       this.init();
 
+      /* Establish the time that must elapse between each of the frames. */
+      final double renderTime
+        = ((double) (TimeUnit.SECONDS.toNanos(1L)
+        / ((double) (GameSettings.GAME_FRAMES_PER_SECOND.get()))));
+
       /*
        * Run the rendering and updating loop until the user has attempted to
        * close the window.
@@ -94,14 +105,24 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
       while (!Window.get().shouldClose()) {
         this.update();
         this.render();
-        try {
-          Thread.sleep(
-            (long) GameSettings.GAME_FREQUENCY_TIME.get()
-          );
-        } catch (
-            final InterruptedException interruptedException) {
-          interruptedException.printStackTrace();
+
+        /* Calculate the time it took to generate the render and update. */
+        final long elapsedTime = System.nanoTime() - this.previousTime;
+
+        /* Calculate how long we have to wait. */
+        final long sleepTime
+          = ((long) ((renderTime - elapsedTime)
+          / TimeUnit.MILLISECONDS.toNanos(1L)));
+        if (sleepTime > 0.0F) {
+          try {
+            Thread.sleep(sleepTime);
+          } catch (
+              final InterruptedException interruptedException) {
+            interruptedException.printStackTrace();
+          }
         }
+
+        this.previousTime = System.nanoTime();
       }
 
       this.close();

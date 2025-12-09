@@ -10,9 +10,9 @@ import es.noa.rad.game.engine.configuration.Configuration;
     /**
      *
      */
-    GAME_FREQUENCY_TIME(
-      "game.frequency.time",
-      Long.class
+    GAME_FRAMES_PER_SECOND(
+      "game.frames.per.second",
+      Double.class
     );
 
     /**
