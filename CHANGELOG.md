@@ -5,6 +5,101 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.3][0.3.3] - 2025-12-09
+
+### Añadido
+
+- **Fixed Timestep para Updates** con renders variables
+  - Campo `double deltaTime` como acumulador de tiempo entre frames
+  - Inicialización de `deltaTime = 0D` en constructor
+  - Cálculo de `updateTime`: tiempo objetivo entre cada update fijo
+  - Loop `while (deltaTime >= 1.0D)` para ejecutar múltiples updates si es necesario
+- **Nueva propiedad de configuración**
+  - `game.updates.per.second` - UPS objetivo (Double) en `application.properties`
+  - Valor por defecto: 60.0 UPS
+  - Permite configurar UPS independiente de FPS
+- **Enum `GAME_UPDATES_PER_SECOND`** en `GameSettings`
+  - Tipo `Double.class` para mayor precisión
+  - Complementa a `GAME_FRAMES_PER_SECOND`
+- **Timestep fijo en `update()`**
+  - `update()` recibe `1.0F / GAME_UPDATES_PER_SECOND` (tiempo fijo)
+  - Ejemplo: 60 UPS → deltaTime = 0.0166 segundos (fijo)
+  - Garantiza física determinística
+- **Variable `fixedDeltaTime`** calculada antes del game loop
+  - Valor constante usado en todos los updates
+  - Calculado una sola vez: `1.0D / GAME_UPDATES_PER_SECOND`
+  - Evita recalcular el timestep en cada iteración del loop de updates
+- **Interpolación en `render()`**
+  - `render()` recibe `(float) deltaTime` (valor fraccional restante)
+  - Valor entre 0.0 y 1.0 para interpolar entre estados
+  - Permite renderizado suave independiente de updates
+
+### Cambiado
+
+- **Separación completa de UPS y FPS**
+  - `updateTime` y `renderTime` calculados independientemente
+  - Updates ejecutados con frecuencia fija (Fixed Timestep)
+  - Renders ejecutados con frecuencia variable (basado en frame capping)
+- **DeltaTime ahora es acumulador**
+  - Tipo cambiado de `float` local a `double` campo de instancia
+  - Acumula tiempo: `deltaTime += (currentTime - previousTime) / updateTime`
+  - Decrementa en cada update: `deltaTime--` después de cada iteración
+- **Update con timestep constante**
+  - Antes: `update(deltaTime)` con valor variable
+  - Después: `update(fixedDeltaTime)` con valor fijo precalculado
+  - Independiente del frame rate
+- **Render con valor de interpolación**
+  - Antes: `render(deltaTime)` con tiempo transcurrido
+  - Después: `render((float) deltaTime)` con valor 0.0-1.0
+  - Representa progreso entre el último update y el siguiente
+- **Eliminación de variable redundante**
+  - Antes: `frameStartTime` y `currentTime` eran idénticos
+  - Después: Solo `currentTime` para claridad
+- **Comentarios mejorados** para mayor claridad educativa
+  - "Fixed timestep for deterministic updates"
+  - "Accumulate time in 'update units'"
+  - "Run all accumulated updates with fixed timestep"
+  - "Render with interpolation alpha (0.0 to 1.0)"
+- Versión actualizada de 0.3.2 a 0.3.3
+
+### Optimizado
+
+- **Cálculo de fixedDeltaTime extraído del loop**
+  - Antes: Calculado en cada iteración del `while (deltaTime >= 1.0)`
+  - Después: Calculado una sola vez antes del game loop
+  - Mejora significativa si hay múltiples updates por frame
+  - Ejemplo: 4 updates pendientes → ahora 1 cálculo en lugar de 4
+
+### Notas Técnicas
+
+- **Fixed Timestep**: Técnica que garantiza updates a intervalos regulares
+  - Physics engines requieren timestep constante para determinismo
+  - Evita problemas de física (objetos atravesando paredes, túneling, etc.)
+  - Acumulador permite "catch up" si un frame tarda demasiado
+- **Acumulador de deltaTime**:
+  - Convierte tiempo real en "unidades de update"
+  - Valor >= 1.0 significa que debe ejecutarse al menos 1 update
+  - Loop while ejecuta todos los updates pendientes
+  - Ejemplo: si pasan 3 frames de update, ejecuta 3 updates seguidos
+- **Interpolación para renderizado**:
+  - `deltaTime` fraccional (0.0-1.0) después del loop de updates
+  - Permite suavizar visualmente entre estados discretos
+  - Fórmula: `posRenderizada = posAnterior + (posActual - posAnterior) * alpha`
+  - `alpha` es el `deltaTime` pasado a `render()`
+- **Ventajas del Fixed Timestep**:
+  - Física determinística: mismo input siempre produce mismo output
+  - Independencia total entre lógica y renderizado
+  - Permite replays, networking, debugging consistente
+  - UPS puede ser diferente de FPS (ej: 30 UPS, 144 FPS)
+- **Ejemplos de comportamiento**:
+  - Sistema rápido (144 FPS, 60 UPS): 1 update cada ~2.4 renders
+  - Sistema lento (30 FPS, 60 UPS): 2 updates por cada render
+  - Sistema muy lento (15 FPS, 60 UPS): 4 updates por render (catch up)
+- **Limitaciones restantes** (educativas):
+  - Sin "spiral of death" protection (máximo de updates por frame)
+  - Sin interpolación implementada en Window (solo valor pasado)
+  - Sin separación de estados anterior/actual para interpolación real
+
 ## [0.3.2][0.3.2] - 2025-12-09
 
 ### Añadido
@@ -420,6 +515,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 - Build exitoso sin errores ni warnings
 - Código cumple 100% con reglas de Checkstyle
 
+[0.3.3]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.3.3
 [0.3.2]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.3.2
 [0.3.1]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.3.1
 [0.3.0]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.3.0

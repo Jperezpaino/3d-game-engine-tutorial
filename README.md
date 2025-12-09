@@ -57,6 +57,7 @@ window.title = 3D Game Engine Tutorial
 
 # Game Loop Configuration
 game.frames.per.second = 60.0
+game.updates.per.second = 60.0
 ```
 
 ### Uso de Configuration
@@ -75,8 +76,9 @@ String title = WindowSettings.WINDOW_TITLE.get();
 // Usar valores por defecto si la propiedad no existe
 Integer width = WindowSettings.WINDOW_WIDTH.get(1280);
 
-// Usar GameSettings para propiedades del juego (con valor por defecto)
+// Usar GameSettings para propiedades del juego (con valores por defecto)
 Double framesPerSecond = GameSettings.GAME_FRAMES_PER_SECOND.get(60.0);
+Double updatesPerSecond = GameSettings.GAME_UPDATES_PER_SECOND.get(60.0);
 ```
 
 #### Ventajas del sistema de enums:
@@ -140,7 +142,7 @@ previousTime = System.nanoTime();
 
 **Mejoras**: Compensación dinámica del overhead, frame rate más estable, alta precisión con nanosegundos.
 
-#### v0.3.2 - Delta Time (Implementación Actual)
+#### v0.3.2 - Delta Time
 
 La versión 0.3.2 añade **"Delta Time"** para movimientos independientes del frame rate:
 
@@ -219,26 +221,122 @@ position += velocity * deltaTime;  // Movimiento consistente
 // Resultado: 100 unidades por segundo en ambos casos
 ```
 
-### Limitaciones Conocidas (Delta Time)
+**Limitaciones**: UPS=FPS acoplados, sin fixed timestep, física no determinística.
+
+#### v0.3.3 - Fixed Timestep para Updates (Implementación Actual)
+
+La versión 0.3.3 introduce **"Fixed Timestep"** separando completamente updates de renders:
+
+```java
+// Configuración inicial (calculado una vez)
+double renderTime = NANOSECONDS_IN_SECOND / framesPerSecond;
+double updateTime = NANOSECONDS_IN_SECOND / updatesPerSecond;
+float fixedDeltaTime = (float) (1.0 / updatesPerSecond);  // Timestep fijo
+double deltaTime = 0.0;  // Acumulador
+long previousTime = System.nanoTime();
+
+// En el game loop
+long currentTime = System.nanoTime();
+
+// Acumular tiempo en "unidades de update"
+deltaTime += (currentTime - previousTime) / updateTime;
+previousTime = currentTime;
+
+// Ejecutar todos los updates pendientes con timestep fijo precalculado
+while (deltaTime >= 1.0) {
+    update(fixedDeltaTime);  // Siempre el mismo valor: 0.0166s
+    deltaTime--;
+}
+
+// Renderizar con valor de interpolación (0.0 a 1.0)
+render((float) deltaTime);
+
+// Sleep dinámico basado en renderTime
+long elapsedTime = System.nanoTime() - currentTime;
+long sleepTime = (renderTime - elapsedTime) / TimeUnit.MILLISECONDS.toNanos(1L);
+if (sleepTime > 0L) {
+    Thread.sleep(sleepTime);
+}
+```
+
+### Características del Sistema (v0.3.3)
+
+- **Fixed Timestep implementado**: Updates ejecutados con intervalo de tiempo constante
+- **UPS desacoplado de FPS**: Configurable independientemente (`game.updates.per.second`)
+- **Acumulador de tiempo**: `deltaTime` tipo `double` acumula tiempo entre frames
+- **Loop de catch-up**: `while (deltaTime >= 1.0)` ejecuta múltiples updates si es necesario
+- **Variable `fixedDeltaTime` precalculada**: Timestep constante calculado una vez fuera del loop
+- **Timestep constante**: `update(fixedDeltaTime)` siempre recibe el mismo valor (ej: 0.0166s)
+- **Física determinística**: Mismo timestep garantiza resultados consistentes
+- **Interpolación preparada**: `render(deltaTime)` recibe valor 0.0-1.0 para suavizado
+- **Renders variables**: FPS puede ser diferente de UPS (ej: 144 FPS con 60 UPS)
+- **Medición separada**: UPS y FPS se miden y reportan independientemente
+- **Código optimizado**: Eliminadas variables redundantes y cálculos repetitivos
+
+### Ventajas del Fixed Timestep
+
+- ✅ **Física determinística**: Mismo input siempre produce mismo output
+- ✅ **Independencia total**: Lógica y renderizado completamente desacoplados
+- ✅ **Catch-up automático**: Si un frame tarda mucho, ejecuta múltiples updates
+- ✅ **Networking friendly**: UPS fijo facilita sincronización en red
+- ✅ **Debugging mejorado**: Comportamiento predecible y reproducible
+- ✅ **Flexibility**: Diferentes UPS/FPS según necesidades (30 UPS, 144 FPS)
+- ✅ **Rendimiento optimizado**: `fixedDeltaTime` calculado una vez, no en cada update
+
+### Ejemplo de Comportamiento
+
+```
+Escenario 1: Sistema rápido (144 FPS, 60 UPS)
+- Frame 1: 0 updates, render con alpha=0.4
+- Frame 2: 0 updates, render con alpha=0.8
+- Frame 3: 1 update,  render con alpha=0.2
+Resultado: Renderizado ultra suave con lógica a 60 Hz
+
+Escenario 2: Sistema lento (30 FPS, 60 UPS)
+- Frame 1: 2 updates, render con alpha=0.0
+- Frame 2: 2 updates, render con alpha=0.0
+Resultado: Lógica mantiene 60 Hz, renderizado a 30 Hz
+
+Escenario 3: Sistema muy lento (15 FPS, 60 UPS)
+- Frame 1: 4 updates, render con alpha=0.0
+Resultado: Catch-up completo, lógica no se ralentiza
+```
+
+### Uso de Interpolación
+
+```java
+// En el método render(), alpha es el deltaTime restante (0.0-1.0)
+void render(float alpha) {
+    // Interpolar posición entre estado anterior y actual
+    float renderX = previousX + (currentX - previousX) * alpha;
+    float renderY = previousY + (currentY - previousY) * alpha;
+    
+    // Dibujar en posición interpolada
+    draw(renderX, renderY);
+}
+
+// Resultado: movimiento visual suave incluso con updates discretos
+```
+
+### Limitaciones Conocidas (Fixed Timestep)
 
 Este enfoque aún tiene limitaciones educativas:
 
-- **UPS = FPS**: Ambos siguen acoplados al mismo ciclo
-- **No recupera frames perdidos**: Si un frame tarda más que `renderTime`, no compensa
-- **Sin fixed timestep**: Física no es completamente determinística
-- **Delta time sin límite**: Puede ser muy grande si hay lag (sin "clamping")
+- **Sin spiral of death protection**: No limita máximo de updates por frame
+- **Interpolación no implementada**: `Window` recibe alpha pero no interpola aún
+- **Sin estados separados**: No guarda posición anterior para interpolación real
 - **Sleep no es preciso**: `Thread.sleep()` tiene variabilidad del sistema operativo
 
 ### Ejemplo de Salida
 
 ```
 Updates Per Second (UPS): 60
-Frames Per Second (FPS): 60
+Frames Per Second (FPS): 144
 Updates Per Second (UPS): 60
-Frames Per Second (FPS): 60
+Frames Per Second (FPS): 143
 ```
 
-> **Nota**: Los debug prints de deltaTime en `Window.update()` y `Window.render()` están comentados para evitar spam en consola. Las siguientes versiones introducirán UPS desacoplado de FPS, fixed timestep para física determinística, y técnicas avanzadas de sincronización para lograr un control profesional del game loop.
+> **Nota**: Ahora UPS y FPS pueden tener valores diferentes. Las siguientes versiones implementarán interpolación real, spiral of death protection, y optimizaciones adicionales para un game loop de nivel profesional.
 
 ## Pruebas
 

@@ -122,30 +122,34 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
         / ((double) GameSettings.GAME_UPDATES_PER_SECOND
           .get(Application.FRAMERATE))));
 
+      /* Fixed timestep for deterministic updates. */
+      final float fixedDeltaTime
+        = ((float) (1.0D / ((double) GameSettings.GAME_UPDATES_PER_SECOND
+          .get(Application.FRAMERATE))));
+
       /*
        * Run the rendering and updating loop until the user has attempted to
        * close the window.
        */
       while (!Window.get().shouldClose()) {
-        final long frameStartTime = System.nanoTime();
-        final long currentTime = frameStartTime;
+        final long currentTime = System.nanoTime();
+
+        /* Accumulate time in "update units". */
         this.deltaTime
           += ((currentTime - this.previousTime) / updateTime);
         this.previousTime = currentTime;
 
-        /* Run all accumulated updates. */
+        /* Run all accumulated updates with fixed timestep. */
         while (this.deltaTime >= 1.0D) {
-          this.update(
-            ((float) (1.0F / ((double) GameSettings.GAME_UPDATES_PER_SECOND
-              .get(Application.FRAMERATE)))));
+          this.update(fixedDeltaTime);
           this.deltaTime--;
         }
 
-        /* Delta time variable for interpolation. */
+        /* Render with interpolation alpha (0.0 to 1.0). */
         this.render((float) this.deltaTime);
 
         /* Calculate the time it took to generate the render and update. */
-        final long elapsedTime = System.nanoTime() - frameStartTime;
+        final long elapsedTime = System.nanoTime() - currentTime;
 
         /* Calculate how long we have to wait. */
         final long sleepTime
