@@ -46,6 +46,11 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
     /**
      *
      */
+    private double deltaTime;
+
+    /**
+     *
+     */
     private int ups;
 
     /**
@@ -74,6 +79,7 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
       this.resetFpsTime();
       this.game = new Thread(this, "Game");
       this.previousTime = System.nanoTime();
+      this.deltaTime = 0D;
       this.game.start();
     }
 
@@ -107,27 +113,39 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
       /* Establish the time that must elapse between each of the frames. */
       final double renderTime
         = ((double) (Application.NANOSECONDS_IN_SECOND
-        / ((double) (GameSettings.GAME_FRAMES_PER_SECOND
-          .get(Application.FRAMERATE)))));
+        / ((double) GameSettings.GAME_FRAMES_PER_SECOND
+          .get(Application.FRAMERATE))));
+
+      /* Establish the time that must elapse between each update. */
+      final double updateTime
+        = ((double) (Application.NANOSECONDS_IN_SECOND
+        / ((double) GameSettings.GAME_UPDATES_PER_SECOND
+          .get(Application.FRAMERATE))));
 
       /*
        * Run the rendering and updating loop until the user has attempted to
        * close the window.
        */
       while (!Window.get().shouldClose()) {
-        final long currentTime = System.nanoTime();
-
-        /* Calculate delta time in seconds. */
-        final float deltaTime
-          = ((currentTime - this.previousTime)
-           / ((float) Application.NANOSECONDS_IN_SECOND));
+        final long frameStartTime = System.nanoTime();
+        final long currentTime = frameStartTime;
+        this.deltaTime
+          += ((currentTime - this.previousTime) / updateTime);
         this.previousTime = currentTime;
 
-        this.update(deltaTime);
-        this.render(deltaTime);
+        /* Run all accumulated updates. */
+        while (this.deltaTime >= 1.0D) {
+          this.update(
+            ((float) (1.0F / ((double) GameSettings.GAME_UPDATES_PER_SECOND
+              .get(Application.FRAMERATE)))));
+          this.deltaTime--;
+        }
+
+        /* Delta time variable for interpolation. */
+        this.render((float) this.deltaTime);
 
         /* Calculate the time it took to generate the render and update. */
-        final long elapsedTime = System.nanoTime() - currentTime;
+        final long elapsedTime = System.nanoTime() - frameStartTime;
 
         /* Calculate how long we have to wait. */
         final long sleepTime
