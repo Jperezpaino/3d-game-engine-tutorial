@@ -30,6 +30,11 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
     /**
      *
      */
+    public static final int MAXIMUM_UPDATES_PER_FRAME = 5;
+
+    /**
+     *
+     */
     private static final long NANOSECONDS_IN_SECOND
       = TimeUnit.SECONDS.toNanos(1L);
 
@@ -113,21 +118,24 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
       /* Establish the time that must elapse between each of the frames. */
       final double renderTime
         = (Application.NANOSECONDS_IN_SECOND
-        / GameSettings.GAME_FRAMES_PER_SECOND.get(Application.FRAMERATE));
+        / ((double) GameSettings.GAME_FRAMES_PER_SECOND
+          .get(Application.FRAMERATE)));
 
       /* Establish the time that must elapse between each update. */
       final double updateTime
         = (Application.NANOSECONDS_IN_SECOND
-        / GameSettings.GAME_UPDATES_PER_SECOND.get(Application.FRAMERATE));
+        / ((double) GameSettings.GAME_UPDATES_PER_SECOND
+          .get(Application.FRAMERATE)));
 
       /* Fixed timestep for deterministic updates. */
       final float fixedDeltaTime
-        = (float) (1.0D / GameSettings.GAME_UPDATES_PER_SECOND
-          .get(Application.FRAMERATE));
+        = (float) (1.0D / ((double) GameSettings.GAME_UPDATES_PER_SECOND
+          .get(Application.FRAMERATE)));
 
       /* Maximum updates per frame (spiral of death protection). */
       final int maxUpdatesPerFrame
-        = GameSettings.GAME_MAXIMUM_UPDATES_PER_FRAME.get(5);
+        = GameSettings.GAME_MAXIMUM_UPDATES_PER_FRAME
+          .get(Application.MAXIMUM_UPDATES_PER_FRAME);
 
       /*
        * Run the rendering and updating loop until the user has attempted to
