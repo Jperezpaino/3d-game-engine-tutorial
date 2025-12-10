@@ -5,6 +5,128 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.6][0.3.6] - 2025-12-10
+
+### Añadido
+
+- **Fixed Timestep para updates + VSync para renders**
+  - Combinación de lo mejor de v0.3.4 (Fixed Timestep) y v0.3.5 (VSync)
+  - Updates con timestep fijo para física determinística
+  - Renders sincronizados con VSync para imagen suave sin tearing
+- **Campo `double deltaTime`** como acumulador de tiempo
+  - Inicializado a 0D en constructor
+  - Acumula tiempo para ejecutar múltiples updates si es necesario
+- **Constante `FRAMERATE`** restaurada en `Application`
+  - Valor por defecto: `60.0D`
+  - Usado como fallback en `GAME_UPDATES_PER_SECOND.get()`
+- **Nueva propiedad de configuración**
+  - `game.updates.per.second` - UPS objetivo (Double) en `application.properties`
+  - Valor por defecto: 60.0 UPS
+  - Permite configurar frecuencia de updates independiente del monitor
+- **Enum `GAME_UPDATES_PER_SECOND`** añadido en `GameSettings`
+  - Tipo `Double.class`
+  - Coexiste con `GAME_VERTICAL_SYNCHRONIZATION`
+- **Cálculo de `updateTime`** en `run()`
+  - Tiempo que debe transcurrir entre cada update
+  - Fórmula: `NANOSECONDS_IN_SECOND / updatesPerSecond`
+- **Cálculo de `fixedDeltaTime`** en `run()`
+  - Timestep constante para física determinística
+  - Fórmula: `1.0 / updatesPerSecond`
+  - Siempre el mismo valor (ej: 0.0166s para 60 UPS)
+
+### Cambiado
+
+- **Game loop ahora combina Fixed Timestep + VSync**
+  - Acumulador de tiempo para updates
+  - Loop `while (deltaTime >= 1.0D)` para catch-up
+  - VSync controla el frame rate de renders
+  - Lo mejor de ambos mundos
+- **Delta time dual purpose**
+  - Como acumulador: `double deltaTime` campo de instancia
+  - Para updates: Siempre `fixedDeltaTime` constante
+  - Para renders: `(float) deltaTime` como alpha de interpolación (0.0-1.0)
+- **Updates ahora son determinísticos**
+  - Antes (v0.3.5): Variable según frame time
+  - Después (v0.3.6): Siempre con mismo timestep
+  - Permite física predecible y reproducible
+- **Renders siguen siendo variables**
+  - Controlados por VSync del monitor
+  - Típicamente 60, 75, 144 Hz según hardware
+  - Sin screen tearing
+- **UPS y FPS desacoplados nuevamente**
+  - UPS: Fijo a valor configurado (60.0 por defecto)
+  - FPS: Variable según refresh rate del monitor
+  - Ejemplo: 60 UPS con 144 FPS posible
+- Versión actualizada de 0.3.5 a 0.3.6
+
+### Restaurado
+
+- **Fixed Timestep pattern** de v0.3.4
+  - Acumulador de tiempo
+  - Loop de catch-up para updates
+  - Timestep constante para física
+- **Separación UPS/FPS** de v0.3.3 y v0.3.4
+  - Updates a frecuencia fija configurable
+  - Renders a frecuencia del monitor (VSync)
+
+### Notas Técnicas
+
+- **Híbrido Fixed Timestep + VSync**:
+  - Updates: Software timing con timestep fijo
+  - Renders: Hardware timing con VSync
+  - Combina ventajas de ambos enfoques
+- **Ventajas del enfoque híbrido**:
+  - ✅ Física determinística (Fixed Timestep)
+  - ✅ Sin screen tearing (VSync)
+  - ✅ Timing eficiente (hardware para renders)
+  - ✅ Catch-up automático (acumulador)
+  - ✅ Interpolación ready (alpha 0.0-1.0)
+  - ✅ Networking compatible (UPS fijo)
+- **Comparación con versiones anteriores**:
+  - vs v0.3.4: Añade VSync, elimina Thread.sleep y spiral of death protection
+  - vs v0.3.5: Añade Fixed Timestep, separa UPS de FPS
+  - Toma lo mejor de cada versión
+- **Comportamiento del acumulador**:
+  - Si sistema es rápido (144 FPS, 60 UPS): ~0-1 updates por frame
+  - Si sistema es normal (60 FPS, 60 UPS): 1 update por frame
+  - Si sistema es lento (30 FPS, 60 UPS): 2 updates por frame
+  - VSync evita que FPS sea demasiado alto
+  - Sin límite de updates (sin spiral of death protection)
+- **Sin spiral of death protection**:
+  - v0.3.4 tenía límite de 5 updates/frame
+  - v0.3.6 no tiene límite (más simple)
+  - Asume que VSync + hardware moderno evitan el problema
+  - Trade-off: Simplicidad vs robustez extrema
+- **Interpolación preparada pero no implementada**:
+  - `render((float) deltaTime)` recibe alpha 0.0-1.0
+  - Window puede usarlo para interpolar posiciones
+  - Permite renderizado ultra suave
+- **Uso típico**:
+  - ✅ Juegos con física importante
+  - ✅ Simuladores que requieren determinismo
+  - ✅ Juegos que quieren 144+ FPS con física estable
+  - ✅ Aplicaciones que necesitan replayability
+
+### Ejemplo de Comportamiento
+
+```
+Monitor 60 Hz, UPS=60:
+- Frame 1: 1 update, render, alpha=0.0
+- Frame 2: 1 update, render, alpha=0.0
+Resultado: 60 UPS, 60 FPS (sincronizados)
+
+Monitor 144 Hz, UPS=60:
+- Frame 1: 0 updates, render, alpha=0.4
+- Frame 2: 0 updates, render, alpha=0.8
+- Frame 3: 1 update, render, alpha=0.2
+Resultado: 60 UPS, 144 FPS (ultra smooth con interpolación)
+
+Monitor 60 Hz, sistema con lag, UPS=60:
+- Frame 1: 2 updates, render, alpha=0.0
+- Frame 2: 1 update, render, alpha=0.0
+Resultado: 60 UPS mantenido, catch-up automático
+```
+
 ## [0.3.5][0.3.5] - 2025-12-10
 
 ### Añadido
@@ -749,6 +871,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 - Build exitoso sin errores ni warnings
 - Código cumple 100% con reglas de Checkstyle
 
+[0.3.6]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.3.6
 [0.3.5]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.3.5
 [0.3.4]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.3.4
 [0.3.3]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.3.3

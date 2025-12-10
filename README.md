@@ -57,6 +57,7 @@ window.title = 3D Game Engine Tutorial
 
 # Game Loop Configuration
 game.vertical.synchronization = true
+game.updates.per.second = 60.0
 ```
 
 ### Uso de Configuration
@@ -77,6 +78,7 @@ Integer width = WindowSettings.WINDOW_WIDTH.get(1280);
 
 // Usar GameSettings para propiedades del juego (con valores por defecto)
 Boolean vsync = GameSettings.GAME_VERTICAL_SYNCHRONIZATION.get(true);
+Double updatesPerSecond = GameSettings.GAME_UPDATES_PER_SECOND.get(60.0);
 ```
 
 #### Ventajas del sistema de enums:
@@ -437,7 +439,7 @@ Hardware muy lento (10 FPS, 60 UPS):
 
 **Limitaciones**: Complejidad alta, sin VSync aún.
 
-#### v0.3.5 - VSync Básico (Implementación Actual)
+#### v0.3.5 - VSync Básico
 
 La versión 0.3.5 simplifica dramáticamente el game loop usando **VSync (Vertical Synchronization)**:
 
@@ -535,6 +537,153 @@ Frames Per Second (FPS): 60
 ```
 
 > **Nota**: VSync es la forma más estándar y recomendada de implementar game loops en OpenGL/LWJGL. Esta implementación representa el enfoque más común en la industria para juegos y aplicaciones gráficas.
+
+#### v0.3.6 - Fixed Timestep + VSync (Implementación Actual)
+
+La versión 0.3.6 combina lo mejor de ambos mundos: **Fixed Timestep para updates determinísticos** y **VSync para renders suaves**:
+
+```java
+// Constantes
+private static final long NANOSECONDS_IN_SECOND = TimeUnit.SECONDS.toNanos(1L);
+private static final double FRAMERATE = 60.0D;
+
+// Variables de timing
+private double deltaTime;
+private long previousTime;
+
+// Inicialización
+Configuration.get().init();
+Window.get().init(width, height, title);
+
+// Habilitar VSync si está configurado
+if (GameSettings.GAME_VERTICAL_SYNCHRONIZATION.get(true)) {
+    Window.get().enableVSync();  // glfwSwapInterval(1)
+}
+
+// Calcular tiempos del fixed timestep
+final double updatesPerSecond = GameSettings.GAME_UPDATES_PER_SECOND.get(FRAMERATE);
+final double updateTime = NANOSECONDS_IN_SECOND / updatesPerSecond;
+final float fixedDeltaTime = (float) (1.0 / updatesPerSecond);
+
+// Timing inicial
+previousTime = System.nanoTime();
+
+// Game loop híbrido
+while (!Window.get().shouldClose()) {
+    long currentTime = System.nanoTime();
+    
+    // Acumular tiempo transcurrido
+    deltaTime += (currentTime - previousTime) / updateTime;
+    previousTime = currentTime;
+    
+    // Fixed updates: ejecutar hasta consumir el tiempo acumulado
+    while (deltaTime >= 1.0D) {
+        update(fixedDeltaTime);  // Siempre el mismo valor (ej: 0.0166s para 60 UPS)
+        deltaTime--;
+    }
+    
+    // VSync render: deltaTime restante es el "alpha" para interpolación
+    render((float) deltaTime);  // Alpha entre 0.0 y 1.0
+    
+    // VSync bloquea aquí hasta el próximo refresco del monitor
+    Window.get().swapBuffers();  // glfwSwapBuffers + glfwPollEvents
+}
+```
+
+### Características del Sistema (v0.3.6)
+
+- **Fixed Timestep para updates**: Física determinística con `fixedDeltaTime` constante
+- **VSync para renders**: Sincronización con monitor para imagen suave sin tearing
+- **UPS/FPS independientes**: Updates a 60 Hz, Renders al refresh rate del monitor
+- **Accumulator pattern**: `deltaTime` acumula tiempo y se consume en updates
+- **Interpolation alpha**: Valor residual de `deltaTime` (0.0-1.0) para suavizado visual
+- **Configuración dual**: `game.updates.per.second` y `game.vertical.synchronization`
+- **Doble propósito de deltaTime**: Acumulador de updates Y alpha de render
+- **Sin límite de catch-up**: Asume VSync + hardware moderno previenen lag extremo
+- **Timing híbrido**: Software para updates (CPU), hardware para renders (GPU/monitor)
+
+### Ventajas del Enfoque Híbrido
+
+- ✅ **Física determinística**: Updates fijos permiten simulaciones predecibles
+- ✅ **Networking compatible**: UPS fijo facilita sincronización entre clientes
+- ✅ **Renders suaves**: VSync elimina tearing y aprovecha monitor de alta frecuencia
+- ✅ **FPS variable sin consecuencias**: Física no se afecta por variaciones en FPS
+- ✅ **Interpolación posible**: Alpha permite suavizado entre estados de física
+- ✅ **UPS/FPS desacoplados**: 60 UPS fijo puede coexistir con 144 FPS
+- ✅ **Eficiencia energética**: VSync permite idle del CPU durante espera
+- ✅ **Best of both worlds**: Precisión de v0.3.4 + simplicidad de v0.3.5
+
+### Comportamiento en Diferentes Escenarios
+
+**Monitor 60Hz con VSync:**
+```
+Updates: 60 UPS constante (fixed timestep)
+Renders: 60 FPS (VSync bloqueado al monitor)
+Resultado: 1 update, 1 render por frame
+```
+
+**Monitor 144Hz con VSync:**
+```
+Updates: 60 UPS constante (fixed timestep)
+Renders: 144 FPS (VSync bloqueado al monitor)
+Resultado: ~2.4 renders por update (interpolación útil)
+```
+
+**Lag momentáneo:**
+```
+Frame largo: Acumulador crece → múltiples updates consecutivos
+Siguiente frame: Catch-up completo, renders retoman suavidad
+Sin límite: Asume que VSync + hardware previenen espirales de muerte
+```
+
+### Comparación con Versiones Previas
+
+| Característica | v0.3.4 (Fixed) | v0.3.5 (VSync) | v0.3.6 (Híbrido) |
+|----------------|----------------|----------------|------------------|
+| **Updates** | Fijos (60 UPS) | Variables (FPS) | **Fijos (60 UPS)** |
+| **Renders** | Variables (sleep) | Fijos (VSync) | **Fijos (VSync)** |
+| **Física** | Determinística | Frame-dependent | **Determinística** |
+| **Screen tearing** | Posible | Prevenido | **Prevenido** |
+| **Interpolación** | Sí (alpha) | No | **Sí (deltaTime)** |
+| **UPS/FPS** | Independientes | Acoplados | **Independientes** |
+| **Timing update** | Software | Hardware | **Software** |
+| **Timing render** | Software | Hardware | **Hardware** |
+| **Complejidad** | Alta | Baja | **Media** |
+| **Catch-up limit** | 5 updates máx | N/A | **Sin límite** |
+| **Networking** | Ideal | Difícil | **Ideal** |
+
+### Cuándo Usar Este Enfoque
+
+**Híbrido Fixed + VSync (v0.3.6) - Recomendado para:**
+- ✅ Juegos multijugador que necesitan física determinística
+- ✅ Simulaciones complejas con VSync activo
+- ✅ Juegos competitivos con monitores de alta frecuencia
+- ✅ Cuando se necesita interpolación suave Y física precisa
+- ✅ Proyectos que requieren replays determinísticos con VSync
+- ✅ Motores de juego educativos que muestran ambas técnicas
+
+**Ventajas específicas sobre v0.3.5:**
+- Física no depende del FPS del monitor
+- Permite networking confiable con sincronización fija
+- Interpolación visual aprovecha monitores de alta frecuencia
+- Simulaciones reproducibles frame-perfect
+
+**Ventajas específicas sobre v0.3.4:**
+- Eliminación total de screen tearing
+- No requiere Thread.sleep ni busy-waiting
+- Aprovecha hardware de GPU/monitor para timing de render
+- Menor consumo de CPU durante esperas
+
+### Ejemplo de Salida
+
+```
+Updates Per Second (UPS): 60
+Frames Per Second (FPS): 60   (Monitor 60Hz)
+Updates Per Second (UPS): 60
+Frames Per Second (FPS): 144  (Monitor 144Hz)
+```
+
+> **Nota**: Esta versión representa un enfoque avanzado que combina lo mejor de Fixed Timestep (v0.3.4) y VSync (v0.3.5), ideal para proyectos que requieren física determinística sin sacrificar la calidad visual de VSync.
 
 ## Pruebas
 
