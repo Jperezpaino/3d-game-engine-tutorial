@@ -90,7 +90,7 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
         Window.get().title()
       );
 
-      /* Enable VSync. */
+      /* Enable VSync if configured. */
       if (((boolean) GameSettings.GAME_VERTICAL_SYNCHRONIZATION.get(true))) {
         Window.get().enableVSync();
       }
@@ -105,22 +105,26 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
       this.init();
 
       /*
-       * Run the rendering and updating loop until the user has attempted to
-       * close the window.
+       * Main game loop: runs until the user closes the window.
+       * VSync controls the frame rate automatically via swapBuffers().
        */
       while (!Window.get().shouldClose()) {
         final long currentTime = System.nanoTime();
 
-        /* Calculate delta time in seconds. */
+        /* Calculate delta time in seconds for frame-independent movement. */
         final float deltaTime
           = ((currentTime - this.previousTime)
            / ((float) Application.NANOSECONDS_IN_SECOND));
         this.previousTime = currentTime;
 
+        /* Update game logic and render graphics. */
         this.update(deltaTime);
         this.render(deltaTime);
 
-        /* We don't need Thread.sleep! VSync takes care of it. */
+        /*
+         * Swap buffers and poll events.
+         * VSync makes this call block until the next vertical refresh.
+         */
         Window.get().swapBuffers();
       }
 

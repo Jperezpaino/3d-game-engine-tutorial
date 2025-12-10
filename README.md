@@ -56,9 +56,7 @@ window.height = 720
 window.title = 3D Game Engine Tutorial
 
 # Game Loop Configuration
-game.frames.per.second = 60.0
-game.updates.per.second = 60.0
-game.maximum.updates.per.frame = 5
+game.vertical.synchronization = true
 ```
 
 ### Uso de Configuration
@@ -78,9 +76,7 @@ String title = WindowSettings.WINDOW_TITLE.get();
 Integer width = WindowSettings.WINDOW_WIDTH.get(1280);
 
 // Usar GameSettings para propiedades del juego (con valores por defecto)
-Double framesPerSecond = GameSettings.GAME_FRAMES_PER_SECOND.get(60.0);
-Double updatesPerSecond = GameSettings.GAME_UPDATES_PER_SECOND.get(60.0);
-Integer maxUpdatesPerFrame = GameSettings.GAME_MAXIMUM_UPDATES_PER_FRAME.get(5);
+Boolean vsync = GameSettings.GAME_VERTICAL_SYNCHRONIZATION.get(true);
 ```
 
 #### Ventajas del sistema de enums:
@@ -322,7 +318,7 @@ void render(float alpha) {
 
 **Limitaciones**: Sin spiral of death protection, puede congelarse en hardware muy lento.
 
-#### v0.3.4 - Final Delta Time con Spiral of Death Protection (Implementación Actual)
+#### v0.3.4 - Final Delta Time con Spiral of Death Protection
 
 La versión 0.3.4 añade **protección contra "Spiral of Death"** limitando updates por frame:
 
@@ -439,25 +435,106 @@ Hardware muy lento (10 FPS, 60 UPS):
 - Funcionamiento degradado pero estable
 ```
 
-### Limitaciones Restantes
+**Limitaciones**: Complejidad alta, sin VSync aún.
 
-Este enfoque aún tiene limitaciones educativas:
+#### v0.3.5 - VSync Básico (Implementación Actual)
 
-- **Interpolación no implementada**: `Window` recibe alpha pero no interpola aún
-- **Sin estados separados**: No guarda posición anterior para interpolación real
-- **Sleep no es preciso**: `Thread.sleep()` tiene variabilidad del sistema operativo
-- **Sin VSync**: Implementación futura usará sincronización vertical (más eficiente para LWJGL)
+La versión 0.3.5 simplifica dramáticamente el game loop usando **VSync (Vertical Synchronization)**:
+
+```java
+// Constante para conversión
+private static final long NANOSECONDS_IN_SECOND = TimeUnit.SECONDS.toNanos(1L);
+
+// Inicialización
+Configuration.get().init();
+Window.get().init(width, height, title);
+
+// Habilitar VSync si está configurado
+if (GameSettings.GAME_VERTICAL_SYNCHRONIZATION.get(true)) {
+    Window.get().enableVSync();  // glfwSwapInterval(1)
+}
+
+// Game loop simplificado
+long previousTime = System.nanoTime();
+
+while (!Window.get().shouldClose()) {
+    long currentTime = System.nanoTime();
+    
+    // Calcular delta time en segundos
+    float deltaTime = (currentTime - previousTime) / (float) NANOSECONDS_IN_SECOND;
+    previousTime = currentTime;
+    
+    // Update y render (una vez cada uno por frame)
+    update(deltaTime);
+    render(deltaTime);
+    
+    // VSync maneja el timing automáticamente
+    Window.get().swapBuffers();  // glfwSwapBuffers + glfwPollEvents
+}
+```
+
+### Características del Sistema (v0.3.5)
+
+- **VSync habilitado**: Sincronización con monitor vía `glfwSwapInterval(1)`
+- **Timing por hardware**: GPU + monitor controlan el frame rate
+- **Sin Thread.sleep()**: VSync bloquea en `glfwSwapBuffers()` hasta próximo refresco
+- **Screen tearing eliminado**: Buffers se intercambian en sincronía con monitor
+- **FPS = Refresh rate del monitor**: Típicamente 60, 75, 144, 165 Hz
+- **Game loop ultra simple**: ~10 líneas vs ~50 líneas de v0.3.4
+- **Delta time variable**: Simple cálculo frame-to-frame para movimientos suaves
+- **UPS = FPS**: Acoplados nuevamente, pero con precisión de hardware
+- **Configuración flexible**: `game.vertical.synchronization` puede desactivar VSync
+- **Método `swapBuffers()`**: Combina swap + poll events en una llamada
+
+### Ventajas de VSync
+
+- ✅ **Simplicidad máxima**: Código limpio y fácil de entender
+- ✅ **Eficiencia**: Timing manejado por hardware, no CPU
+- ✅ **Sin screen tearing**: Imagen perfecta sin artefactos visuales
+- ✅ **Consumo reducido**: CPU descansa durante VSync wait
+- ✅ **Precisión**: Sincronización exacta con monitor
+- ✅ **Estándar OpenGL/LWJGL**: Forma más común en la industria
+- ✅ **FPS consistente**: No varía constantemente
+
+### Comparación de Versiones
+
+| Característica | v0.3.4 (Fixed Timestep) | v0.3.5 (VSync) |
+|----------------|-------------------------|----------------|
+| **Complejidad** | Alta (~50 líneas) | Baja (~10 líneas) |
+| **Timing** | Software (Thread.sleep) | Hardware (VSync) |
+| **Física** | Determinística (fixed) | Frame-dependent (variable) |
+| **UPS/FPS** | Independientes | Acoplados al monitor |
+| **Catch-up** | Sí (hasta 5 updates) | No |
+| **Screen tearing** | Posible | Prevenido |
+| **CPU idle** | Busy-wait en sleep | Bloqueado en VSync |
+| **Uso típico** | Simuladores, multiplayer | Single-player, mayoría de juegos |
+| **Networking** | Ideal | Requiere trabajo extra |
+
+### Cuándo Usar Cada Enfoque
+
+**VSync (v0.3.5) - Recomendado para:**
+- ✅ Juegos single-player
+- ✅ Aplicaciones gráficas interactivas
+- ✅ Editores y herramientas
+- ✅ Prototipos rápidos
+- ✅ Cuando simplicidad es prioritaria
+
+**Fixed Timestep (v0.3.4) - Considerar para:**
+- ⚠️ Juegos multijugador competitivos
+- ⚠️ Simulaciones físicas complejas
+- ⚠️ Sistemas que requieren replays determinísticos
+- ⚠️ Networking con predicción/rollback
 
 ### Ejemplo de Salida
 
 ```
 Updates Per Second (UPS): 60
-Frames Per Second (FPS): 144
+Frames Per Second (FPS): 60
 Updates Per Second (UPS): 60
-Frames Per Second (FPS): 143
+Frames Per Second (FPS): 60
 ```
 
-> **Nota**: Esta implementación de "Delta Time Final" completa el sistema de timing básico con protección profesional. Las siguientes versiones explorarán VSync y técnicas más eficientes específicas de LWJGL para optimizar el rendimiento.
+> **Nota**: VSync es la forma más estándar y recomendada de implementar game loops en OpenGL/LWJGL. Esta implementación representa el enfoque más común en la industria para juegos y aplicaciones gráficas.
 
 ## Pruebas
 

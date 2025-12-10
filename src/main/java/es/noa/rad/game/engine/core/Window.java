@@ -137,13 +137,16 @@ import org.lwjgl.system.MemoryUtil;
      *
      */
     public void swapBuffers() {
-
-      /* Swap the window buffers. */
+      /*
+       * Swap the front and back buffers. With VSync enabled, this call will
+       * block until the next vertical refresh, limiting the frame rate to
+       * the monitor's refresh rate.
+       */
       GLFW.glfwSwapBuffers(this.glfwWindow);
 
       /*
-       * Poll for window events. The key callback above will only be invoked
-       * during this call.
+       * Poll for window events (keyboard, mouse, window close, etc.).
+       * This processes events that have been queued since the last call.
        */
       GLFW.glfwPollEvents();
     }
@@ -158,11 +161,6 @@ import org.lwjgl.system.MemoryUtil;
         "Updating Game! Delta: %.4f.%n",
         _deltaTime
       );
-      /*
-       * Poll for window events. The key callback above will only be invoked
-       * during this call.
-       */
-      GLFW.glfwPollEvents();
     }
 
     /**

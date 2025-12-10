@@ -5,6 +5,140 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.5][0.3.5] - 2025-12-10
+
+### Añadido
+
+- **VSync (Vertical Synchronization) básico**
+  - Método `enableVSync()` en `Window`
+  - Llama a `GLFW.glfwSwapInterval(1)` para habilitar VSync
+  - Sincronización automática con la frecuencia de refresco del monitor
+- **Método `swapBuffers()` en `Window`**
+  - Combina `glfwSwapBuffers()` y `glfwPollEvents()` en una sola llamada
+  - Simplifica el game loop principal
+  - VSync controla el timing automáticamente
+- **Nueva propiedad de configuración**
+  - `game.vertical.synchronization` - Habilitar/deshabilitar VSync (Boolean)
+  - Valor por defecto: `true`
+  - Permite desactivar VSync si se necesita
+- **Enum `GAME_VERTICAL_SYNCHRONIZATION`** en `GameSettings`
+  - Tipo `Boolean.class`
+  - Método `.get(true)` con valor por defecto
+- **Contexto OpenGL configurado**
+  - Añadido `glfwMakeContextCurrent()` en `Window.init()`
+  - Necesario para que VSync funcione correctamente
+
+### Cambiado
+
+- **Game loop simplificado dramáticamente**
+  - Antes: Fixed Timestep con acumulador, catch-up loop, spiral of death protection, sleep dinámico
+  - Después: Simple delta time con VSync
+  - De ~50 líneas de lógica de timing a ~10 líneas
+- **Delta time ahora es variable local**
+  - Antes: `double deltaTime` campo de instancia (acumulador)
+  - Después: `float deltaTime` variable local calculada cada frame
+  - Simplificación: solo para movimientos frame-independent, no para física determinística
+- **Update y render llamados una vez por frame**
+  - Sin loop de catch-up
+  - Sin múltiples updates por frame
+  - UPS = FPS (acoplados nuevamente, pero controlados por VSync)
+- **Sincronización delegada a hardware**
+  - Antes: `Thread.sleep()` calculado por software
+  - Después: VSync maneja timing por hardware
+  - Más eficiente y preciso
+- **Reorganización de responsabilidades**
+  - `Window.update()`: Ya no llama a `glfwPollEvents()` (movido a `swapBuffers()`)
+  - `Window.render()`: Ya no llama a `glfwSwapBuffers()` (movido a `swapBuffers()`)
+  - Game loop: Llama a `swapBuffers()` al final de cada iteración
+- **Comentarios mejorados para mayor claridad**
+  - Game loop: Explica rol de VSync en control de frame rate
+  - `swapBuffers()`: Detalla comportamiento con VSync habilitado
+  - `enableVSync()`: Contexto sobre sincronización vertical
+- **Eliminado cast redundante**: `(boolean)` en condición de VSync
+- Versión actualizada de 0.3.4 a 0.3.5
+
+### Optimizado
+
+- **Eliminada duplicación de `glfwPollEvents()`**
+  - Antes: Llamado en `Window.update()` Y en game loop
+  - Después: Solo en `Window.swapBuffers()`
+  - Previene procesamiento doble de eventos por frame
+  - Mejora claridad: responsabilidad única por método
+
+### Eliminado
+
+- **Sistema Fixed Timestep completo**
+  - Eliminado acumulador `deltaTime` como campo
+  - Eliminado `updateTime` y `renderTime`
+  - Eliminado `fixedDeltaTime`
+  - Eliminado `maxUpdatesPerFrame`
+  - Eliminado loop `while (deltaTime >= 1.0D)`
+  - Eliminado contador `updateCount`
+  - Eliminado spiral of death protection
+- **Thread.sleep() y frame capping manual**
+  - Eliminado cálculo de `sleepTime`
+  - Eliminado `elapsedTime`
+  - Eliminado bloque try-catch de `InterruptedException`
+- **Propiedades de configuración obsoletas**
+  - Eliminado `game.frames.per.second`
+  - Eliminado `game.updates.per.second`
+  - Eliminado `game.maximum.updates.per.frame`
+- **Enums de GameSettings obsoletos**
+  - Eliminado `GAME_FRAMES_PER_SECOND`
+  - Eliminado `GAME_UPDATES_PER_SECOND`
+  - Eliminado `GAME_MAXIMUM_UPDATES_PER_FRAME`
+- **Constantes de Application obsoletas**
+  - Eliminado `FRAMERATE`
+  - Eliminado `MAXIMUM_UPDATES_PER_FRAME`
+
+### Notas Técnicas
+
+- **VSync (Vertical Synchronization)**:
+  - Sincroniza el swap de buffers con el refresco vertical del monitor
+  - Previene screen tearing (rasgado de pantalla)
+  - FPS se limita automáticamente a la frecuencia del monitor (típicamente 60 Hz, 75 Hz, 144 Hz, etc.)
+  - `glfwSwapInterval(1)`: sincroniza con cada refresco (60 FPS en monitor de 60 Hz)
+  - `glfwSwapInterval(0)`: desactiva VSync (sin límite de FPS)
+  - `glfwSwapInterval(2)`: sincroniza cada 2 refrescos (30 FPS en monitor de 60 Hz)
+- **Ventajas de VSync**:
+  - ✅ Timing preciso manejado por hardware (GPU + monitor)
+  - ✅ Elimina screen tearing
+  - ✅ Reduce consumo de CPU (no busy-wait)
+  - ✅ Código más simple y legible
+  - ✅ Más eficiente para LWJGL/OpenGL
+  - ✅ Comportamiento consistente entre sistemas
+- **Trade-offs vs Fixed Timestep**:
+  - ⚠️ Física no es determinística (deltaTime variable)
+  - ⚠️ UPS acoplado a FPS del monitor
+  - ⚠️ Networking puede requerir interpolación adicional
+  - ⚠️ No hay catch-up si un frame tarda mucho
+  - ✅ Pero: Suficiente para la mayoría de juegos
+  - ✅ Pero: Más simple de implementar y mantener
+- **Cuándo usar VSync**:
+  - ✅ Juegos single-player con física simple
+  - ✅ Aplicaciones gráficas interactivas
+  - ✅ Editores y herramientas
+  - ✅ Cuando la simplicidad es prioritaria
+  - ⚠️ Considerar Fixed Timestep para: juegos multijugador competitivos, simulaciones físicas complejas, replays determinísticos
+- **Implementación educativa**:
+  - Esta versión demuestra la forma más simple y común de game loop en OpenGL/LWJGL
+  - Mayoría de tutoriales y juegos indie usan este enfoque
+  - Balance perfecto entre simplicidad y funcionalidad
+  - Base sólida antes de optimizaciones avanzadas
+
+### Comparación con v0.3.4
+
+| Aspecto | v0.3.4 (Fixed Timestep) | v0.3.5 (VSync) |
+|---------|-------------------------|----------------|
+| Complejidad | Alta (~50 líneas timing) | Baja (~10 líneas) |
+| Física | Determinística | Frame-dependent |
+| Timing | Software (Thread.sleep) | Hardware (VSync) |
+| UPS/FPS | Independientes | Acoplados al monitor |
+| Catch-up | Sí (hasta 5 updates) | No |
+| Screen tearing | Posible | Prevenido |
+| Networking | Ideal | Requiere trabajo extra |
+| Uso típico | Simuladores, multiplayer | Single-player, tools |
+
 ## [0.3.4][0.3.4] - 2025-12-10
 
 ### Añadido
@@ -615,6 +749,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 - Build exitoso sin errores ni warnings
 - Código cumple 100% con reglas de Checkstyle
 
+[0.3.5]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.3.5
 [0.3.4]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.3.4
 [0.3.3]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.3.3
 [0.3.2]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.3.2
