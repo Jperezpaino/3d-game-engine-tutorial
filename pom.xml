@@ -8,7 +8,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>es.noa.rad.game</groupId>
   <artifactId>3d-game-engine-tutorial</artifactId>
-  <version>0.3.5</version>
+  <version>0.3.6</version>
   <packaging>jar</packaging>
   <name>3d-game-engine-tutorial</name>
   <description>

@@ -13,6 +13,14 @@ import es.noa.rad.game.engine.configuration.Configuration;
     GAME_VERTICAL_SYNCHRONIZATION(
       "game.vertical.synchronization",
       Boolean.class
+    ),
+
+    /**
+     *
+     */
+    GAME_UPDATES_PER_SECOND(
+      "game.updates.per.second",
+      Double.class
     );
 
     /**

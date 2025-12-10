@@ -25,6 +25,11 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
     /**
      *
      */
+    public static final double FRAMERATE = 60.0D;
+
+    /**
+     *
+     */
     private static final long NANOSECONDS_IN_SECOND
       = TimeUnit.SECONDS.toNanos(1L);
 
@@ -37,6 +42,11 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
      *
      */
     private long previousTime;
+
+    /**
+     *
+     */
+    private double deltaTime;
 
     /**
      *
@@ -69,6 +79,7 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
       this.resetFpsTime();
       this.game = new Thread(this, "Game");
       this.previousTime = System.nanoTime();
+      this.deltaTime = 0D;
       this.game.start();
     }
 
@@ -104,6 +115,17 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
     public void run() {
       this.init();
 
+      /* Establish the time that must elapse between each update. */
+      final double updateTime
+        = ((double) (Application.NANOSECONDS_IN_SECOND
+        / ((double) GameSettings.GAME_UPDATES_PER_SECOND
+          .get(Application.FRAMERATE))));
+
+      /* Fixed timestep for deterministic updates. */
+      final float fixedDeltaTime
+        = ((float) (1.0D / ((double) GameSettings.GAME_UPDATES_PER_SECOND
+          .get(Application.FRAMERATE))));
+
       /*
        * Main game loop: runs until the user closes the window.
        * VSync controls the frame rate automatically via swapBuffers().
@@ -111,15 +133,19 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
       while (!Window.get().shouldClose()) {
         final long currentTime = System.nanoTime();
 
-        /* Calculate delta time in seconds for frame-independent movement. */
-        final float deltaTime
-          = ((currentTime - this.previousTime)
-           / ((float) Application.NANOSECONDS_IN_SECOND));
+        /* Accumulate time in "update units". */
+        this.deltaTime
+          += ((currentTime - this.previousTime) / updateTime);
         this.previousTime = currentTime;
 
-        /* Update game logic and render graphics. */
-        this.update(deltaTime);
-        this.render(deltaTime);
+        /* Run all accumulated updates with fixed timestep. */
+        while (this.deltaTime >= 1.0D) {
+          this.update(fixedDeltaTime);
+          this.deltaTime--;
+        }
+
+        /* Render with interpolation alpha (0.0 to 1.0). */
+        this.render((float) this.deltaTime);
 
         /*
          * Swap buffers and poll events.
