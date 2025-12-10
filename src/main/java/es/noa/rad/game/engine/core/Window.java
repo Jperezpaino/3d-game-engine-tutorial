@@ -116,8 +116,36 @@ import org.lwjgl.system.MemoryUtil;
       /* Make the window position in the center of the screen. */
       GLFW.glfwSetWindowPos(this.glfwWindow, centerX, centerY);
 
+      /*
+       * Sets the OpenGL context of the specified window as the current context
+       * for the calling thread.
+       */
+      GLFW.glfwMakeContextCurrent(this.glfwWindow);
+
       /* Make the window visible. */
       GLFW.glfwShowWindow(this.glfwWindow);
+    }
+
+    /**
+     *
+     */
+    public void enableVSync() {
+      GLFW.glfwSwapInterval(1);
+    }
+
+    /**
+     *
+     */
+    public void swapBuffers() {
+
+      /* Swap the window buffers. */
+      GLFW.glfwSwapBuffers(this.glfwWindow);
+
+      /*
+       * Poll for window events. The key callback above will only be invoked
+       * during this call.
+       */
+      GLFW.glfwPollEvents();
     }
 
     /**
@@ -147,8 +175,6 @@ import org.lwjgl.system.MemoryUtil;
         "Rendering Game! Delta: %.4f.%n",
         _deltaTime
       );
-      /* Swap the window buffers. */
-      GLFW.glfwSwapBuffers(this.glfwWindow);
     }
 
     /**

@@ -10,25 +10,9 @@ import es.noa.rad.game.engine.configuration.Configuration;
     /**
      *
      */
-    GAME_FRAMES_PER_SECOND(
-      "game.frames.per.second",
-      Double.class
-    ),
-
-    /**
-     *
-     */
-    GAME_UPDATES_PER_SECOND(
-      "game.updates.per.second",
-      Double.class
-    ),
-
-    /**
-     *
-     */
-    GAME_MAXIMUM_UPDATES_PER_FRAME(
-      "game.maximum.updates.per.frame",
-      Integer.class
+    GAME_VERTICAL_SYNCHRONIZATION(
+      "game.vertical.synchronization",
+      Boolean.class
     );
 
     /**

@@ -25,16 +25,6 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
     /**
      *
      */
-    public static final double FRAMERATE = 60.0D;
-
-    /**
-     *
-     */
-    public static final int MAXIMUM_UPDATES_PER_FRAME = 5;
-
-    /**
-     *
-     */
     private static final long NANOSECONDS_IN_SECOND
       = TimeUnit.SECONDS.toNanos(1L);
 
@@ -47,11 +37,6 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
      *
      */
     private long previousTime;
-
-    /**
-     *
-     */
-    private double deltaTime;
 
     /**
      *
@@ -84,7 +69,6 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
       this.resetFpsTime();
       this.game = new Thread(this, "Game");
       this.previousTime = System.nanoTime();
-      this.deltaTime = 0D;
       this.game.start();
     }
 
@@ -105,6 +89,11 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
         Window.get().height(),
         Window.get().title()
       );
+
+      /* Enable VSync. */
+      if (((boolean) GameSettings.GAME_VERTICAL_SYNCHRONIZATION.get(true))) {
+        Window.get().enableVSync();
+      }
     }
 
     /**
@@ -115,28 +104,6 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
     public void run() {
       this.init();
 
-      /* Establish the time that must elapse between each of the frames. */
-      final double renderTime
-        = (Application.NANOSECONDS_IN_SECOND
-        / ((double) GameSettings.GAME_FRAMES_PER_SECOND
-          .get(Application.FRAMERATE)));
-
-      /* Establish the time that must elapse between each update. */
-      final double updateTime
-        = (Application.NANOSECONDS_IN_SECOND
-        / ((double) GameSettings.GAME_UPDATES_PER_SECOND
-          .get(Application.FRAMERATE)));
-
-      /* Fixed timestep for deterministic updates. */
-      final float fixedDeltaTime
-        = (float) (1.0D / ((double) GameSettings.GAME_UPDATES_PER_SECOND
-          .get(Application.FRAMERATE)));
-
-      /* Maximum updates per frame (spiral of death protection). */
-      final int maxUpdatesPerFrame
-        = GameSettings.GAME_MAXIMUM_UPDATES_PER_FRAME
-          .get(Application.MAXIMUM_UPDATES_PER_FRAME);
-
       /*
        * Run the rendering and updating loop until the user has attempted to
        * close the window.
@@ -144,41 +111,17 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
       while (!Window.get().shouldClose()) {
         final long currentTime = System.nanoTime();
 
-        /* Accumulate time in "update units". */
-        this.deltaTime
-          += ((currentTime - this.previousTime) / updateTime);
+        /* Calculate delta time in seconds. */
+        final float deltaTime
+          = ((currentTime - this.previousTime)
+           / ((float) Application.NANOSECONDS_IN_SECOND));
         this.previousTime = currentTime;
 
-        /*
-         * Run all accumulated updates with fixed timestep.
-         * Limit updates per frame to prevent spiral of death.
-         */
-        int updateCount = 0;
-        while ((this.deltaTime >= 1.0D)
-            && (updateCount < maxUpdatesPerFrame)) {
-          this.update(fixedDeltaTime);
-          this.deltaTime--;
-          updateCount++;
-        }
+        this.update(deltaTime);
+        this.render(deltaTime);
 
-        /* Render with interpolation alpha (0.0 to 1.0). */
-        this.render((float) this.deltaTime);
-
-        /* Calculate the time it took to generate the render and update. */
-        final long elapsedTime = System.nanoTime() - currentTime;
-
-        /* Calculate how long we have to wait. */
-        final long sleepTime
-          = ((long) ((renderTime - elapsedTime)
-          / TimeUnit.MILLISECONDS.toNanos(1L)));
-        if (sleepTime > 0L) {
-          try {
-            Thread.sleep(sleepTime);
-          } catch (
-              final InterruptedException interruptedException) {
-            interruptedException.printStackTrace();
-          }
-        }
+        /* We don't need Thread.sleep! VSync takes care of it. */
+        Window.get().swapBuffers();
       }
 
       this.close();
