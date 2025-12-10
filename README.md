@@ -364,10 +364,11 @@ if (sleepTime > 0L) {
 ### Características del Sistema (v0.3.4)
 
 - **Spiral of Death Protection**: Límite máximo de 5 updates por frame
+- **Constante de fallback**: `MAXIMUM_UPDATES_PER_FRAME = 5` en Application
 - **Contador de updates**: `int updateCount` rastrea iteraciones del loop
 - **Condición doble**: Loop verifica tiempo acumulado Y límite de updates
-- **Configuración flexible**: `game.maximun.updates.per.frame = 5` en properties
-- **Enum adicional**: `GAME_MAXIMUN_UPDATES_PER_FRAME` en GameSettings
+- **Configuración flexible**: `game.maximum.updates.per.frame = 5` en properties
+- **Enum adicional**: `GAME_MAXIMUM_UPDATES_PER_FRAME` en GameSettings
 - **Aplicación siempre responde**: Nunca se congela, incluso en hardware muy lento
 - **Trade-off inteligente**: Sacrifica precisión física por fluidez visual si es necesario
 - Todas las características de v0.3.3 (Fixed Timestep, UPS/FPS independientes, etc.)
@@ -473,6 +474,21 @@ El proyecto usa Checkstyle para mantener estándares de calidad:
 ```bash
 mvn checkstyle:check
 ```
+
+### Configuración de Checkstyle
+
+El proyecto sigue las convenciones de código de Sun/Oracle con personalizaciones:
+
+- **Longitud de línea**: Máximo 80 caracteres
+- **JavaDoc**: Requerido en todos los métodos y clases
+- **Magic Numbers**: Números literales permitidos: `-3, -2, -1, 0, 1, 2, 3`
+  - Números pequeños comunes no requieren constantes
+  - Números mayores (5, 10, 16, 60, etc.) deben usar constantes nombradas
+  - Ejemplo: `FRAMERATE = 60.0D`, `MAXIMUM_UPDATES_PER_FRAME = 5`
+- **Naming**: Parámetros con prefijo `_` (ej: `_deltaTime`)
+- **Exceptions**: Nombres con sufijo `Exception` (ej: `interruptedException`)
+
+El archivo de configuración está en `doc/checkstyle/checkstyle-rules.xml`.
 
 ## Estructura del Proyecto
 

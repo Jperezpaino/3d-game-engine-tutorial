@@ -5,7 +5,7 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.3.4][0.3.4] - 2025-12-09
+## [0.3.4][0.3.4] - 2025-12-10
 
 ### Añadido
 
@@ -13,14 +13,18 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
   - Campo `int updateCount = 0` antes del loop de updates
   - Contador reiniciado antes de cada ciclo de catch-up
   - Límite máximo de updates por frame
+- **Constante `MAXIMUM_UPDATES_PER_FRAME`** en `Application`
+  - Valor por defecto: `5` (int)
+  - Usado como fallback en configuración
+  - Proporciona valor seguro si falta la propiedad
 - **Nueva propiedad de configuración**
   - `game.maximum.updates.per.frame` - Límite de updates (Integer) en `application.properties`
-  - Valor por defecto: 5 updates máximo por frame
+  - Valor configurado: 5 updates máximo por frame
   - Previene bucles infinitos en sistemas muy lentos
 - **Enum `GAME_MAXIMUM_UPDATES_PER_FRAME`** en `GameSettings`
   - Tipo `Integer.class` para límite discreto
   - Complementa configuración de FPS y UPS
-  - Método `.get(5)` con valor por defecto para robustez
+  - Método `.get(MAXIMUM_UPDATES_PER_FRAME)` con valor por defecto para robustez
 - **Condición doble en loop de updates**
   - Antes: `while (deltaTime >= 1.0D)`
   - Después: `while ((deltaTime >= 1.0D) && (updateCount < maxUpdatesPerFrame))`
