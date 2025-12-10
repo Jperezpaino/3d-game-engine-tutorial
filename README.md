@@ -538,7 +538,7 @@ Frames Per Second (FPS): 60
 
 > **Nota**: VSync es la forma más estándar y recomendada de implementar game loops en OpenGL/LWJGL. Esta implementación representa el enfoque más común en la industria para juegos y aplicaciones gráficas.
 
-#### v0.3.6 - Fixed Timestep + VSync (Implementación Actual)
+#### v0.3.6 - Fixed Timestep + VSync
 
 La versión 0.3.6 combina lo mejor de ambos mundos: **Fixed Timestep para updates determinísticos** y **VSync para renders suaves**:
 
@@ -684,6 +684,197 @@ Frames Per Second (FPS): 144  (Monitor 144Hz)
 ```
 
 > **Nota**: Esta versión representa un enfoque avanzado que combina lo mejor de Fixed Timestep (v0.3.4) y VSync (v0.3.5), ideal para proyectos que requieren física determinística sin sacrificar la calidad visual de VSync.
+
+#### v0.3.7 - Fixed Timestep + VSync + Spiral of Death Protection (Implementación Actual)
+
+La versión 0.3.7 añade **protección contra Spiral of Death** a la implementación híbrida de v0.3.6:
+
+```java
+// Constantes
+private static final long NANOSECONDS_IN_SECOND = TimeUnit.SECONDS.toNanos(1L);
+private static final double FRAMERATE = 60.0D;
+private static final int MAXIMUM_UPDATES_PER_FRAME = 5;
+
+// Variables de timing y control
+private boolean running;
+private double deltaTime;
+private long previousTime;
+
+// Inicialización
+Configuration.get().init();
+Window.get().init(width, height, title);
+
+// Habilitar VSync si está configurado
+if (GameSettings.GAME_VERTICAL_SYNCHRONIZATION.get(true)) {
+    Window.get().enableVSync();  // glfwSwapInterval(1)
+}
+
+// Iniciar el game loop
+running = true;
+
+// Calcular tiempos del fixed timestep (simplificado)
+final double updatesPerSecond = GameSettings.GAME_UPDATES_PER_SECOND.get(FRAMERATE);
+final double updateTime = NANOSECONDS_IN_SECOND / updatesPerSecond;
+final float fixedDeltaTime = (float) (1.0 / updatesPerSecond);
+
+// Configurar límite de spiral of death
+final int maxUpdatesPerFrame = GameSettings.GAME_MAXIMUM_UPDATES_PER_FRAME.get(MAXIMUM_UPDATES_PER_FRAME);
+
+// Timing inicial
+previousTime = System.nanoTime();
+
+// Game loop completo con triple protección
+while (running && !Window.get().shouldClose()) {
+    long currentTime = System.nanoTime();
+    
+    // Acumular tiempo transcurrido
+    deltaTime += (currentTime - previousTime) / updateTime;
+    previousTime = currentTime;
+    
+    // Fixed updates con límite de spiral of death
+    int updateCount = 0;
+    while (deltaTime >= 1.0D && updateCount < maxUpdatesPerFrame) {
+        update(fixedDeltaTime);  // Siempre el mismo valor (0.0166s para 60 UPS)
+        deltaTime--;
+        updateCount++;  // Incrementar contador de protección
+    }
+    
+    // VSync render con interpolation alpha
+    render((float) deltaTime);  // Alpha entre 0.0 y 1.0
+    
+    // VSync bloquea aquí hasta el próximo refresco
+    Window.get().swapBuffers();  // glfwSwapBuffers + glfwPollEvents
+}
+```
+
+### Características del Sistema (v0.3.7)
+
+- **Fixed Timestep para updates**: Física determinística con `fixedDeltaTime` constante
+- **VSync para renders**: Sincronización con monitor para imagen suave sin tearing
+- **Spiral of Death Protection**: Límite de 5 updates por frame previene congelamiento
+- **UPS/FPS independientes**: Updates a 60 Hz, Renders al refresh rate del monitor
+- **Accumulator pattern**: `deltaTime` acumula tiempo y se consume en updates
+- **Interpolation alpha**: Valor residual de `deltaTime` (0.0-1.0) para suavizado visual
+- **Control de flujo**: Campo `boolean running` para parada limpia del loop
+- **Métodos de ciclo de vida**: `start()`, `stop()`, `close()` para control explícito
+- **Configuración triple**: `game.updates.per.second`, `game.maximum.updates.per.frame`, `game.vertical.synchronization`
+- **Timing híbrido**: Software para updates (CPU), hardware para renders (GPU/monitor)
+- **Variable extraída**: `updatesPerSecond` evita repetición y mejora legibilidad
+
+### Ventajas de la Protección Completa
+
+- ✅ **Nunca se congela**: Aplicación siempre responde incluso en hardware muy lento
+- ✅ **Física determinística**: Updates fijos permiten simulaciones predecibles
+- ✅ **Networking compatible**: UPS fijo facilita sincronización entre clientes
+- ✅ **Renders suaves**: VSync elimina tearing y aprovecha monitor de alta frecuencia
+- ✅ **Degradación elegante**: En lugar de crash, funciona con precisión reducida
+- ✅ **Balance automático**: Entre precisión física y fluidez visual
+- ✅ **Hardware tolerante**: Funciona desde PCs lentos hasta potentes
+- ✅ **Interpolación posible**: Alpha permite suavizado entre estados de física
+- ✅ **UPS/FPS desacoplados**: 60 UPS fijo puede coexistir con 144 FPS
+
+### El Problema del Spiral of Death
+
+El **Spiral of Death** ocurre cuando:
+1. Un update tarda más tiempo que el timestep fijo (ej: 16.6ms tarda 20ms)
+2. El acumulador crece más rápido de lo que puede procesarse
+3. El loop intenta hacer catch-up infinito
+4. Cada update adicional hace el sistema aún más lento
+5. La aplicación se congela ejecutando solo updates, nunca renders
+
+**Solución en v0.3.7:**
+```
+Frame 1: deltaTime=8.5 → ejecuta 5 updates → deltaTime=3.5 → LÍMITE → render
+Frame 2: deltaTime=5.8 → ejecuta 5 updates → deltaTime=0.8 → LÍMITE → render
+Frame 3: deltaTime=1.2 → ejecuta 1 update  → deltaTime=0.2 → render normal
+```
+
+### Comportamiento en Diferentes Escenarios
+
+**Hardware rápido (144 FPS, 60 UPS):**
+```
+Updates por frame: 0-1
+Límite: Nunca alcanzado
+Funcionamiento: Óptimo
+```
+
+**Hardware normal (60 FPS, 60 UPS):**
+```
+Updates por frame: 1
+Límite: Nunca alcanzado
+Funcionamiento: Óptimo
+```
+
+**Hardware lento (20 FPS, 60 UPS):**
+```
+Updates por frame: 3
+Límite: Ocasionalmente alcanzado
+Funcionamiento: Aceptable con catch-up
+```
+
+**Hardware muy lento (10 FPS, 60 UPS):**
+```
+Updates por frame: 5 (límite)
+Física: Pierde precisión temporal
+Aplicación: Responde, no se congela
+Funcionamiento: Degradado pero estable
+```
+
+### Comparación con Versiones Previas
+
+| Característica | v0.3.4 (Fixed) | v0.3.5 (VSync) | v0.3.6 (Híbrido) | v0.3.7 (Completo) |
+|----------------|----------------|----------------|------------------|-------------------|
+| **Updates** | Fijos (60 UPS) | Variables (FPS) | Fijos (60 UPS) | **Fijos (60 UPS)** |
+| **Renders** | Variables (sleep) | Fijos (VSync) | Fijos (VSync) | **Fijos (VSync)** |
+| **Física** | Determinística | Frame-dependent | Determinística | **Determinística** |
+| **Screen tearing** | Posible | Prevenido | Prevenido | **Prevenido** |
+| **Catch-up limit** | 5 updates máx | N/A | Sin límite | **5 updates máx** |
+| **Control flujo** | No | No | No | **Sí (running)** |
+| **Spiral protection** | Sí | N/A | No | **Sí** |
+| **Robustez** | Alta | Media | Media | **Máxima** |
+| **Complejidad** | Alta | Baja | Media | **Alta** |
+| **Networking** | Ideal | Difícil | Ideal | **Ideal** |
+
+### Cuándo Usar Esta Implementación
+
+**Fixed + VSync + Protection (v0.3.7) - Recomendado para:**
+- ✅ **Juegos multijugador** que necesitan física determinística
+- ✅ **Simulaciones complejas** con VSync activo
+- ✅ **Hardware variable** desde PCs lentos a potentes
+- ✅ **Aplicaciones críticas** que no pueden congelarse
+- ✅ **Proyectos profesionales** que requieren máxima robustez
+- ✅ **Juegos competitivos** con monitores de alta frecuencia
+- ✅ **Motores de juego educativos** mostrando best practices
+
+**Ventajas específicas sobre v0.3.6:**
+- Protección contra congelamiento en hardware muy lento
+- Control de flujo explícito con `running`
+- Métodos de ciclo de vida claramente definidos
+- Configuración de límite de spiral of death
+
+**Ventajas específicas sobre v0.3.4:**
+- Eliminación total de screen tearing (VSync)
+- No requiere Thread.sleep ni busy-waiting
+- Aprovecha hardware de GPU/monitor para timing de render
+- Menor consumo de CPU durante esperas
+
+### Mejoras de Legibilidad Aplicadas
+
+1. **Variable `updatesPerSecond` extraída**: Evita repetición de `GameSettings.GAME_UPDATES_PER_SECOND.get(FRAMERATE)` usada en múltiples cálculos
+2. **Expresión del acumulador simplificada**: Eliminados paréntesis externos redundantes - `((currentTime - previousTime) / updateTime)` → `(currentTime - previousTime) / updateTime`
+
+> **Nota sobre casts**: Los casts explícitos como `((boolean) ...)` se mantienen intencionalmente para prevenir errores en tiempo de ejecución cuando `Configuration.get()` no recibe valor por defecto, garantizando type safety.
+
+### Ejemplo de Salida
+
+```
+Updates Per Second (UPS): 60
+Frames Per Second (FPS): 60   (Monitor 60Hz)
+Updates Per Second (UPS): 60
+Frames Per Second (FPS): 144  (Monitor 144Hz)
+```
+
+> **Nota**: Esta es la **implementación más completa y robusta** del tutorial, combinando Fixed Timestep (v0.3.4), VSync (v0.3.5), y Spiral of Death Protection (v0.3.4). Ideal para proyectos profesionales que requieren física determinística, calidad visual perfecta, y funcionamiento en hardware variable.
 
 ## Pruebas
 

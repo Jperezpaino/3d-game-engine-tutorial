@@ -5,6 +5,107 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.7][0.3.7] - 2025-12-10
+
+### Añadido
+
+- **Fixed Timestep + VSync + Spiral of Death Protection (Implementación Completa)**
+  - Combina Fixed Timestep (v0.3.4), VSync (v0.3.5), y protección contra spiral of death
+  - Updates con timestep fijo para física determinística (60 UPS)
+  - Renders sincronizados con VSync (monitor Hz)
+  - Límite de 5 updates por frame para prevenir congelamiento
+- **Campo `boolean running`** para control del game loop
+  - Permite parada limpia del loop
+  - Inicializado a `false` en constructor
+- **Métodos `start()` y `stop()`**
+  - Control explícito del estado del game loop
+  - `start()` llamado después de `init()`
+  - `stop()` llamado al finalizar `run()`
+- **Constante `MAXIMUM_UPDATES_PER_FRAME`** en `Application`
+  - Valor por defecto: `5` (int)
+  - Protección contra spiral of death
+- **Campo `double deltaTime`** como acumulador
+  - Inicializado a `0D` en constructor
+  - Acumula tiempo entre frames
+- **Nueva propiedad de configuración**
+  - `game.maximum.updates.per.frame` - Límite de updates (Integer)
+  - Valor por defecto: 5 updates máximo por frame
+- **Enum `GAME_MAXIMUM_UPDATES_PER_FRAME`** en `GameSettings`
+  - Tipo `Integer.class`
+  - Complementa `GAME_UPDATES_PER_SECOND` y `GAME_VERTICAL_SYNCHRONIZATION`
+- **Contador `updateCount`** en game loop
+  - Rastrea número de updates en frame actual
+  - Reiniciado a 0 antes del loop de catch-up
+- **Condición doble en loop de updates**
+  - `while ((deltaTime >= 1.0D) && (updateCount < maxUpdatesPerFrame))`
+  - Primera condición: tiempo acumulado para update
+  - Segunda condición: límite de spiral of death
+
+### Cambiado
+
+- **Game loop ahora tiene triple protección**
+  - Fixed Timestep: Updates determinísticos
+  - VSync: Renders sin tearing
+  - Spiral of Death Protection: Límite de catch-up
+- **Condición de loop principal mejorada**
+  - Antes: `while (!Window.get().shouldClose())`
+  - Después: `while ((this.running) && (!Window.get().shouldClose()))`
+  - Mayor control sobre el estado del loop
+- **Ciclo de vida más explícito**
+  - `init()` → `start()` → game loop → `close()` → `stop()`
+
+### Protegido
+
+- **Prevención de Spiral of Death**
+  - Sistema lento → máximo 5 updates → render continúa → aplicación responde
+  - Trade-off: Física puede "saltar" frames en hardware muy lento, pero app no se congela
+  - Balance entre precisión física y fluidez visual
+
+### Notas Técnicas
+
+- **Implementación Completa**: Esta versión representa el sistema de timing más robusto
+  - Física determinística (Fixed Timestep)
+  - Sin screen tearing (VSync)
+  - Protección contra congelamiento (Spiral of Death Protection)
+- **UPS/FPS Desacoplados**:
+  - UPS: Siempre 60 (configurable)
+  - FPS: Según refresh rate del monitor (60Hz, 144Hz, etc.)
+  - Ejemplo: 60 UPS con 144 FPS posible
+- **Comportamiento del sistema**:
+  - Hardware rápido (144 FPS): 0-1 updates por frame, límite nunca alcanzado
+  - Hardware normal (60 FPS): 1 update por frame, funcionamiento óptimo
+  - Hardware lento (30 FPS): 2 updates por frame, catch-up automático
+  - Hardware muy lento (20 FPS): 5 updates máximo, protección activa
+- **Ventajas sobre versiones previas**:
+  - vs v0.3.4: Añade VSync (sin screen tearing)
+  - vs v0.3.5: Añade Fixed Timestep (física determinística)
+  - vs v0.3.6: Añade Spiral of Death Protection (robustez)
+- **Cuándo usar**:
+  - ✅ Juegos multijugador con física importante
+  - ✅ Simuladores que requieren determinismo
+  - ✅ Aplicaciones con VSync que necesitan UPS fijo
+  - ✅ Proyectos que pueden ejecutarse en hardware variable
+
+### Ejemplo de Comportamiento
+
+```
+Monitor 60 Hz, UPS=60:
+- Frame 1: 1 update, render, alpha≈0.0
+- Frame 2: 1 update, render, alpha≈0.0
+Resultado: 60 UPS, 60 FPS (sincronizados)
+
+Monitor 144 Hz, UPS=60:
+- Frame 1: 0 updates, render, alpha≈0.4
+- Frame 2: 0 updates, render, alpha≈0.8
+- Frame 3: 1 update, render, alpha≈0.2
+Resultado: 60 UPS, 144 FPS (ultra smooth)
+
+Sistema con lag, UPS=60:
+- Frame largo: 8 updates pendientes → ejecuta 5 → LÍMITE
+- Siguiente frame: 3 updates pendientes → ejecuta 3 → normaliza
+Resultado: Sistema responde siempre, física se recupera gradualmente
+```
+
 ## [0.3.6][0.3.6] - 2025-12-10
 
 ### Añadido
@@ -871,6 +972,7 @@ Resultado: 60 UPS mantenido, catch-up automático
 - Build exitoso sin errores ni warnings
 - Código cumple 100% con reglas de Checkstyle
 
+[0.3.7]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.3.7
 [0.3.6]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.3.6
 [0.3.5]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.3.5
 [0.3.4]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.3.4
