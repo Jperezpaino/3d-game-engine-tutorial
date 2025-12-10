@@ -21,6 +21,14 @@ import es.noa.rad.game.engine.configuration.Configuration;
     GAME_UPDATES_PER_SECOND(
       "game.updates.per.second",
       Double.class
+    ),
+
+    /**
+     *
+     */
+    GAME_MAXIMUM_UPDATES_PER_FRAME(
+      "game.maximum.updates.per.frame",
+      Integer.class
     );
 
     /**
