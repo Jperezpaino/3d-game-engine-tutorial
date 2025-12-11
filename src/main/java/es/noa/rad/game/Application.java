@@ -15,16 +15,6 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
     /**
      *
      */
-    public static final int WIDTH = 1280;
-
-    /**
-     *
-     */
-    public static final int HEIGHT = 720;
-
-    /**
-     *
-     */
     private final Thread game;
 
     /**
@@ -45,8 +35,8 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
       /* Initialize configuration and create window. */
       Configuration.get().init();
       Window.get().init(
-        WindowSettings.WINDOW_WIDTH.get(Application.WIDTH),
-        WindowSettings.WINDOW_HEIGHT.get(Application.HEIGHT),
+        WindowSettings.WINDOW_WIDTH.get(),
+        WindowSettings.WINDOW_HEIGHT.get(),
         WindowSettings.WINDOW_TITLE.get()
       );
 
@@ -58,7 +48,7 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
       );
 
       /* Enable VSync if configured. */
-      if (((boolean) GameSettings.GAME_VERTICAL_SYNCHRONIZATION.get(true))) {
+      if (((boolean) GameSettings.GAME_VERTICAL_SYNCHRONIZATION.get())) {
         Window.get().enableVSync();
       }
 

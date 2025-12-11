@@ -8,35 +8,45 @@ import es.noa.rad.game.engine.configuration.Configuration;
   public enum GameSettings {
 
     /**
-     *
+     * Enable or disable vertical synchronization (VSync).
+     * Default: {@code true}
      */
     GAME_VERTICAL_SYNCHRONIZATION(
       "game.vertical.synchronization",
-      Boolean.class
+      Boolean.class,
+      true
     ),
 
     /**
-     *
+     * Target updates per second for the game loop (fixed timestep).
+     * Default: {@code 60.0}
      */
     GAME_UPDATES_PER_SECOND(
       "game.updates.per.second",
-      Double.class
+      Double.class,
+      60.0D
     ),
 
     /**
-     *
+     * Maximum number of updates allowed per frame.
+     * (spiral of death protection).
+     * Default: {@code 5}
      */
     GAME_MAXIMUM_UPDATES_PER_FRAME(
       "game.maximum.updates.per.frame",
-      Integer.class
+      Integer.class,
+      5
     ),
 
     /**
-     *
+     * Maximum accumulated time in seconds before resetting.
+     * (spiral of death protection).
+     * Default: {@code 0.5f} (500ms)
      */
     GAME_MAXIMUM_ACCUMULATED_TIME(
       "game.maximum.accumulated.time",
-      Float.class
+      Float.class,
+      0.5F
     );
 
     /**
@@ -51,14 +61,22 @@ import es.noa.rad.game.engine.configuration.Configuration;
 
     /**
      *
+     */
+    private final Object defaultValue;
+
+    /**
+     *
      * @param _property {@code String}
      * @param _classType {@code Class<?>}
+     * @param _defaultValue {@code Object}
      */
     GameSettings(
         final String _property,
-        final Class<?> _classType) {
+        final Class<?> _classType,
+        final Object _defaultValue) {
       this.property = _property;
       this.classType = _classType;
+      this.defaultValue = _defaultValue;
     }
 
     /**
@@ -69,7 +87,11 @@ import es.noa.rad.game.engine.configuration.Configuration;
     @SuppressWarnings("unchecked")
     public <T> T get() {
       return (T) Configuration.get()
-        .property(this.property, (Class<T>) this.classType);
+        .property(
+          this.property,
+          (Class<T>) this.classType,
+          (T) this.defaultValue
+        );
     }
 
     /**
@@ -81,8 +103,14 @@ import es.noa.rad.game.engine.configuration.Configuration;
     @SuppressWarnings("unchecked")
     public <T> T get(
         final T _defaultValue) {
+      final T propertyValue
+        = _defaultValue != null ? _defaultValue : (T) this.defaultValue;
       return (T) Configuration.get()
-        .property(this.property, (Class<T>) this.classType, (T) _defaultValue);
+        .property(
+          this.property,
+          (Class<T>) this.classType,
+          propertyValue
+        );
     }
 
   }

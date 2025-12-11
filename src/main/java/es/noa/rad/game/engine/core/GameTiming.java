@@ -13,21 +13,6 @@ import es.noa.rad.game.engine.configuration.settings.GameSettings;
     /**
      *
      */
-    public static final double FRAMERATE = 60.0D;
-
-    /**
-     *
-     */
-    public static final int MAXIMUM_UPDATES_PER_FRAME = 5;
-
-    /**
-     *
-     */
-    public static final float MAXIMUM_ACCUMULATED_TIME = 0.5F;
-
-    /**
-     *
-     */
     private static final long NANOSECONDS_IN_SECOND
       = TimeUnit.SECONDS.toNanos(1L);
 
@@ -160,18 +145,15 @@ import es.noa.rad.game.engine.configuration.settings.GameSettings;
 
       /* Updates per second (e.g., 60.0 = 60 UPS). */
       final double updatesPerSecond
-        = GameSettings.GAME_UPDATES_PER_SECOND
-          .get(GameTiming.FRAMERATE);
+        = GameSettings.GAME_UPDATES_PER_SECOND.get();
 
       /* Maximum time accumulation in seconds (e.g., 0.5 = 500ms). */
       this.maxAccumulatedTime
-        = GameSettings.GAME_MAXIMUM_ACCUMULATED_TIME
-          .get(GameTiming.MAXIMUM_ACCUMULATED_TIME);
+        = GameSettings.GAME_MAXIMUM_ACCUMULATED_TIME.get();
 
       /* Maximum updates per frame (spiral of death protection). */
       this.maxUpdatesPerFrame
-        = GameSettings.GAME_MAXIMUM_UPDATES_PER_FRAME
-          .get(GameTiming.MAXIMUM_UPDATES_PER_FRAME);
+        = GameSettings.GAME_MAXIMUM_UPDATES_PER_FRAME.get();
 
       /* Establish the time that must elapse between each update. */
       this.updateTime
