@@ -3,6 +3,7 @@ package es.noa.rad.game.engine.core;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.glfw.GLFWVidMode;
 import org.lwjgl.system.MemoryUtil;
+import es.noa.rad.game.engine.event.KeyboardEventHandler;
 
   /**
    *
@@ -122,6 +123,11 @@ import org.lwjgl.system.MemoryUtil;
        */
       GLFW.glfwMakeContextCurrent(this.glfwWindow);
 
+      GLFW.glfwSetKeyCallback(
+        this.glfwWindow,
+        KeyboardEventHandler.get().getGlfwKeyCallback()
+      );
+
       /* Make the window visible. */
       GLFW.glfwShowWindow(this.glfwWindow);
     }
@@ -188,6 +194,9 @@ import org.lwjgl.system.MemoryUtil;
      *
      */
     public void close() {
+      /* Free the Keyboard callback. */
+      KeyboardEventHandler.get().close();
+
       /* Free the window callbacks and destroy the window. */
       GLFW.glfwDestroyWindow(this.glfwWindow);
 

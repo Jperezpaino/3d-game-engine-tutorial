@@ -2,6 +2,10 @@ package es.noa.rad.game;
 
 import es.noa.rad.game.engine.core.GameTiming;
 import es.noa.rad.game.engine.core.Window;
+import es.noa.rad.game.engine.event.KeyboardEventHandler;
+
+import org.lwjgl.glfw.GLFW;
+
 import es.noa.rad.game.engine.configuration.Configuration;
 import es.noa.rad.game.engine.configuration.settings.GameSettings;
 import es.noa.rad.game.engine.configuration.settings.WindowSettings;
@@ -20,11 +24,17 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
     /**
      *
      */
+    private boolean running;
+
+    /**
+     *
+     */
     private Application() {
       super();
 
       /* Create and start the game thread. */
       this.game = new Thread(this, "Game");
+      this.running = false;
       this.game.start();
     }
 
@@ -70,12 +80,14 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
      *
      */
     private void start() {
+      this.running = true;
     }
 
     /**
      *
      */
     private void stop() {
+      this.running = false;
       GameTiming.get().stop();
     }
 
@@ -91,8 +103,13 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
        * Main game loop: runs until the user closes the window.
        * VSync controls the frame rate automatically via swapBuffers().
        */
-      while ((!Window.get().shouldClose())
+      while ((this.running)
+          && (!Window.get().shouldClose())
           && (GameTiming.get().tick())) {
+
+        if (KeyboardEventHandler.get().isKeyPressed(GLFW.GLFW_KEY_ESCAPE)) {
+          this.running = false;
+        }
 
         /*
          * Swap buffers and poll events.
