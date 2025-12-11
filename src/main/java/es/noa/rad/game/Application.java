@@ -161,10 +161,12 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
 
       /* Load configuration values once to avoid repeated lookups. */
 
+      /* Updates per second (e.g., 60.0 = 60 UPS). */
       final double updatesPerSecond
         = GameSettings.GAME_UPDATES_PER_SECOND
           .get(Application.FRAMERATE);
 
+      /* Maximum time accumulation in seconds (e.g., 0.5 = 500ms). */
       final float maxAccumulatedTime
         = GameSettings.GAME_MAXIMUM_ACCUMULATED_TIME
           .get(Application.MAXIMUM_ACCUMULATED_TIME);
