@@ -35,6 +35,11 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
     /**
      *
      */
+    public static final float MAXIMUM_ACCUMULATED_TIME = 0.5F;
+
+    /**
+     *
+     */
     private static final long NANOSECONDS_IN_SECOND
       = TimeUnit.SECONDS.toNanos(1L);
 
@@ -57,6 +62,11 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
      *
      */
     private double deltaTime;
+
+    /**
+     *
+     */
+    private int totalSkippedUpdates;
 
     /**
      *
@@ -91,6 +101,7 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
       this.running = false;
       this.previousTime = System.nanoTime();
       this.deltaTime = 0D;
+      this.totalSkippedUpdates = 0;
       this.game.start();
     }
 
@@ -144,9 +155,9 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
 
       /* Establish the time that must elapse between each update. */
       final double updateTime
-        = (Application.NANOSECONDS_IN_SECOND
+        = ((double) (Application.NANOSECONDS_IN_SECOND
         / ((double) GameSettings.GAME_UPDATES_PER_SECOND
-          .get(Application.FRAMERATE)));
+          .get(Application.FRAMERATE))));
 
       /* Fixed timestep for deterministic updates. */
       final float fixedDeltaTime
@@ -171,6 +182,27 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
           += ((currentTime - this.previousTime) / updateTime);
         this.previousTime = currentTime;
 
+        /* Protection against spiral of death. */
+        if (this.deltaTime
+          > (((float) (GameSettings.GAME_MAXIMUM_ACCUMULATED_TIME
+             .get(Application.MAXIMUM_ACCUMULATED_TIME)))
+           * ((double) (GameSettings.GAME_UPDATES_PER_SECOND
+             .get(Application.FRAMERATE))))) {
+          System.out.printf("Game too far behind, resetting delta time.%n");
+          final int skippedUpdates
+            = ((int) (this.deltaTime
+            - (((float) (GameSettings.GAME_MAXIMUM_ACCUMULATED_TIME
+               .get(Application.MAXIMUM_ACCUMULATED_TIME)))
+             * ((double) (GameSettings.GAME_UPDATES_PER_SECOND
+               .get(Application.FRAMERATE))))));
+            this.totalSkippedUpdates += skippedUpdates;
+            this.deltaTime
+              = (((float) (GameSettings.GAME_MAXIMUM_ACCUMULATED_TIME
+                .get(Application.MAXIMUM_ACCUMULATED_TIME)))
+               * ((double) (GameSettings.GAME_UPDATES_PER_SECOND
+                .get(Application.FRAMERATE))));
+        }
+
         /*
          * Run all accumulated updates with fixed timestep.
          * Limit updates per frame to prevent spiral of death.
@@ -183,6 +215,19 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
           this.update(fixedDeltaTime);
           this.deltaTime--;
           updateCount++;
+        }
+
+        /* If there are still pending updates after the deadline. */
+        if (this.deltaTime >= 1.0D) {
+          final int skipped = ((int) this.deltaTime);
+          this.totalSkippedUpdates += skipped;
+          this.deltaTime -= skipped;
+          if (skipped > 0) {
+            System.out.printf(
+              "Skipped %d updates to prevent spiral of death.%n",
+              skipped
+            );
+          }
         }
 
         /* Render with interpolation alpha (0.0 to 1.0). */
@@ -210,8 +255,9 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
       final long currentTime = System.currentTimeMillis();
       if (currentTime > this.upsTime) {
         System.out.printf(
-          "Updates Per Second (UPS): %d.%n",
-          this.ups
+          "Updates Per Second (UPS): %d, Total Skipped Updates: %d.%n",
+          this.ups,
+          this.totalSkippedUpdates
         );
         this.resetUpsTime();
         this.resetUps();
