@@ -39,7 +39,7 @@ java -cp target\classes es.noa.rad.game.Application
 mvn clean package
 ```
 
-El archivo JAR se generará en `target/3d-game-engine-tutorial-0.3.8.jar`
+El archivo JAR se generará en `target/3d-game-engine-tutorial-0.3.9.jar`
 
 ## Sistema de Configuración
 
