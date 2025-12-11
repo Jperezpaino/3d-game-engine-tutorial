@@ -9,6 +9,7 @@ import es.noa.rad.game.engine.configuration.Configuration;
 
     /**
      * Enable or disable vertical synchronization (VSync).
+     *
      * Default: {@code true}
      */
     GAME_VERTICAL_SYNCHRONIZATION(
@@ -19,6 +20,7 @@ import es.noa.rad.game.engine.configuration.Configuration;
 
     /**
      * Target updates per second for the game loop (fixed timestep).
+     *
      * Default: {@code 60.0}
      */
     GAME_UPDATES_PER_SECOND(
@@ -29,7 +31,8 @@ import es.noa.rad.game.engine.configuration.Configuration;
 
     /**
      * Maximum number of updates allowed per frame.
-     * (spiral of death protection).
+     * (Spiral of death protection).
+     *
      * Default: {@code 5}
      */
     GAME_MAXIMUM_UPDATES_PER_FRAME(
@@ -40,7 +43,8 @@ import es.noa.rad.game.engine.configuration.Configuration;
 
     /**
      * Maximum accumulated time in seconds before resetting.
-     * (spiral of death protection).
+     * (Spiral of death protection).
+     *
      * Default: {@code 0.5f} (500ms)
      */
     GAME_MAXIMUM_ACCUMULATED_TIME(
@@ -103,8 +107,12 @@ import es.noa.rad.game.engine.configuration.Configuration;
     @SuppressWarnings("unchecked")
     public <T> T get(
         final T _defaultValue) {
-      final T propertyValue
-        = _defaultValue != null ? _defaultValue : (T) this.defaultValue;
+      /* Establish which default value to use. */
+      T propertyValue = (T) this.defaultValue;
+      if (_defaultValue != null) {
+        propertyValue = _defaultValue;
+      }
+
       return (T) Configuration.get()
         .property(
           this.property,

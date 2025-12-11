@@ -9,6 +9,7 @@ import es.noa.rad.game.engine.configuration.Configuration;
 
     /**
      * Window width in pixels.
+     *
      * Default: {@code 1280}
      */
     WINDOW_WIDTH(
@@ -19,6 +20,7 @@ import es.noa.rad.game.engine.configuration.Configuration;
 
     /**
      * Window height in pixels.
+     *
      * Default: {@code 720}
      */
     WINDOW_HEIGHT(
@@ -29,6 +31,7 @@ import es.noa.rad.game.engine.configuration.Configuration;
 
     /**
      * Window title text.
+     *
      * Default: {@code "3D Game Engine"}
      */
     WINDOW_TITLE(
@@ -91,8 +94,12 @@ import es.noa.rad.game.engine.configuration.Configuration;
     @SuppressWarnings("unchecked")
     public <T> T get(
         final T _defaultValue) {
-      final T propertyValue
-        = _defaultValue != null ? _defaultValue : (T) this.defaultValue;
+      /* Establish which default value to use. */
+      T propertyValue = (T) this.defaultValue;
+      if (_defaultValue != null) {
+        propertyValue = _defaultValue;
+      }
+
       return (T) Configuration.get()
         .property(
           this.property,
