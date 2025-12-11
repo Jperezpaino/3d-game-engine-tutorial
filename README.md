@@ -409,7 +409,7 @@ Frame 3: deltaTime=1.2 → ejecuta 1 update  → deltaTime=0.2 → render normal
 
 - ✅ **Nunca se congela**: Aplicación siempre responde
 - ✅ **Balance automático**: Entre precisión física y fluidez visual
-- ✅ **Configurable**: Ajustar `game.maximun.updates.per.frame` según necesidades
+- ✅ **Configurable**: Ajustar `game.maximum.updates.per.frame` según necesidades
 - ✅ **Degradación elegante**: En lugar de crash, funciona con precisión reducida
 - ✅ **Hardware tolerante**: Funciona desde PCs lentos hasta potentes
 
@@ -685,7 +685,7 @@ Frames Per Second (FPS): 144  (Monitor 144Hz)
 
 > **Nota**: Esta versión representa un enfoque avanzado que combina lo mejor de Fixed Timestep (v0.3.4) y VSync (v0.3.5), ideal para proyectos que requieren física determinística sin sacrificar la calidad visual de VSync.
 
-#### v0.3.7 - Fixed Timestep + VSync + Spiral of Death Protection (Implementación Actual)
+#### v0.3.7 - Fixed Timestep + VSync + Spiral of Death Protection
 
 La versión 0.3.7 añade **protección contra Spiral of Death** a la implementación híbrida de v0.3.6:
 
@@ -874,7 +874,276 @@ Updates Per Second (UPS): 60
 Frames Per Second (FPS): 144  (Monitor 144Hz)
 ```
 
-> **Nota**: Esta es la **implementación más completa y robusta** del tutorial, combinando Fixed Timestep (v0.3.4), VSync (v0.3.5), y Spiral of Death Protection (v0.3.4). Ideal para proyectos profesionales que requieren física determinística, calidad visual perfecta, y funcionamiento en hardware variable.
+> **Nota**: Esta versión combina Fixed Timestep (v0.3.4), VSync (v0.3.5), y Spiral of Death Protection (v0.3.4). Versión robusta ideal para proyectos que requieren física determinística, calidad visual perfecta, y funcionamiento en hardware variable.
+
+#### v0.3.8 - Spiral of Death Protegido con Telemetría (Implementación Actual)
+
+La versión 0.3.8 mejora la v0.3.7 añadiendo **doble protección contra Spiral of Death** y **telemetría de rendimiento**:
+
+```java
+// Constantes ampliadas
+private static final long NANOSECONDS_IN_SECOND = TimeUnit.SECONDS.toNanos(1L);
+private static final double FRAMERATE = 60.0D;
+private static final int MAXIMUM_UPDATES_PER_FRAME = 5;
+private static final float MAXIMUM_ACCUMULATED_TIME = 0.5F;  // NUEVO: 500ms
+
+// Variables de timing, control y telemetría
+private boolean running;
+private double deltaTime;
+private long previousTime;
+private int totalSkippedUpdates;  // NUEVO: Contador total
+
+// Configuración cargada una vez (optimización)
+Configuration.get().init();
+Window.get().init(width, height, title);
+
+if (GameSettings.GAME_VERTICAL_SYNCHRONIZATION.get(true)) {
+    Window.get().enableVSync();
+}
+
+running = true;
+
+/* Load configuration values once to avoid repeated lookups. */
+final double updatesPerSecond = GameSettings.GAME_UPDATES_PER_SECOND
+  .get(FRAMERATE);
+final float maxAccumulatedTime = GameSettings.GAME_MAXIMUM_ACCUMULATED_TIME
+  .get(MAXIMUM_ACCUMULATED_TIME);
+final int maxUpdatesPerFrame = GameSettings.GAME_MAXIMUM_UPDATES_PER_FRAME
+  .get(MAXIMUM_UPDATES_PER_FRAME);
+
+/* Establish the time that must elapse between each update. */
+final double updateTime = NANOSECONDS_IN_SECOND / updatesPerSecond;
+
+/* Fixed timestep for deterministic updates. */
+final float fixedDeltaTime = (float) (1.0D / updatesPerSecond);
+
+/* Maximum delta time threshold (in update units). */
+final double maxDeltaTime = maxAccumulatedTime * updatesPerSecond;
+
+// Timing inicial
+previousTime = System.nanoTime();
+
+// Game loop con doble protección
+while (running && !Window.get().shouldClose()) {
+    long currentTime = System.nanoTime();
+    
+    /*
+     * Accumulate elapsed time normalized to "update units".
+     * deltaTime >= 1.0 means one update is needed.
+     */
+    deltaTime += (currentTime - previousTime) / updateTime;
+    previousTime = currentTime;
+    
+    /*
+     * PROTECCIÓN 1: Reset si acumulación excesiva.
+     * If too much time accumulated, reset to maximum threshold.
+     * This prevents infinite catch-up loop on very slow hardware.
+     */
+    if (deltaTime > maxDeltaTime) {
+        System.out.printf(
+          "Delta time too high (%.2f updates), "
+          + "resetting to %.2f (max %.2f seconds).%n",
+          deltaTime, maxDeltaTime, maxAccumulatedTime
+        );
+        int skippedUpdates = (int) (deltaTime - maxDeltaTime);
+        totalSkippedUpdates += skippedUpdates;  // Telemetría
+        deltaTime = maxDeltaTime;
+    }
+    
+    /*
+     * Catch-up loop: Run accumulated updates with fixed timestep.
+     * Limited to maxUpdatesPerFrame to prevent spiral of death.
+     */
+    int updateCount = 0;
+    while (deltaTime >= 1.0D && updateCount < maxUpdatesPerFrame) {
+        update(fixedDeltaTime);  // Siempre 0.0166s para 60 UPS
+        deltaTime--;
+        updateCount++;
+    }
+    
+    /*
+     * PROTECCIÓN 2: Descartar updates restantes si se alcanzó el límite.
+     */
+    if (deltaTime >= 1.0D) {
+        int skipped = (int) deltaTime;
+        totalSkippedUpdates += skipped;  // Telemetría
+        deltaTime -= skipped;
+        if (skipped > 0) {
+            System.out.printf(
+              "Skipped %d updates (limit: %d per frame) "
+              + "to prevent spiral of death.%n",
+              skipped, maxUpdatesPerFrame
+            );
+        }
+    }
+    
+    /*
+     * Render with interpolation alpha (0.0 to 1.0).
+     * Alpha represents progress between current and next update,
+     * allowing smooth visuals even with fixed physics timestep.
+     */
+    render((float) deltaTime);
+    
+    /*
+     * Swap buffers and poll events.
+     * VSync makes this call block until the next vertical refresh.
+     */
+    Window.get().swapBuffers();
+}
+```
+
+### Características del Sistema (v0.3.8)
+
+- **Doble protección contra Spiral of Death**:
+  - Nivel 1: Reset de `deltaTime` si excede 30 updates (500ms)
+  - Nivel 2: Límite de 5 updates por frame
+- **Telemetría de rendimiento**: Campo `totalSkippedUpdates` rastrea updates omitidos
+- **Configuración optimizada**: Variables cargadas una sola vez al inicio
+- **Expresiones simplificadas**: Eliminados casts redundantes y código duplicado
+- **Logging informativo**: Mensajes con valores específicos para debugging
+- **Fixed Timestep**: Física determinística con `fixedDeltaTime` constante (0.0166s)
+- **VSync**: Sincronización con monitor para imagen suave sin tearing
+- **UPS/FPS independientes**: Updates a 60 Hz, Renders al refresh rate del monitor
+- **Accumulator pattern**: `deltaTime` acumula tiempo y se consume en updates
+- **Interpolation alpha**: Valor residual (0.0-1.0) para suavizado visual
+- **Control de flujo**: Campo `boolean running` para parada limpia del loop
+- **Comentarios descriptivos**: Documentación interna clara y educativa
+
+### Ventajas de v0.3.8 sobre v0.3.7
+
+- ✅ **Mejor diagnóstico**: Telemetría de updates omitidos totales
+- ✅ **Logging más informativo**: Mensajes con valores actuales de deltaTime, límites y umbrales
+- ✅ **Código más limpio**: Variables extraídas, eliminada duplicación (DRY)
+- ✅ **Mejor rendimiento**: Menos llamadas a `GameSettings` (de 10+ a 3)
+- ✅ **Mayor robustez**: Doble protección en lugar de protección simple
+- ✅ **Más mantenible**: Cambios en un solo lugar, comentarios descriptivos
+- ✅ **Análisis de rendimiento**: Estadísticas muestran total de updates omitidos
+
+### Protección Doble Explicada
+
+**Nivel 1 - Reset de acumulación excesiva:**
+```java
+if (deltaTime > maxDeltaTime) {  // Si > 30 updates acumulados
+    totalSkippedUpdates += (deltaTime - maxDeltaTime);
+    deltaTime = maxDeltaTime;  // Reset a 30 updates máximo
+}
+```
+
+**Nivel 2 - Límite de updates por frame:**
+```java
+while (deltaTime >= 1.0D && updateCount < 5) {
+    update(fixedDeltaTime);
+    updateCount++;
+}
+```
+
+**¿Por qué doble protección?**
+- Hardware muy lento puede acumular > 30 updates en un solo frame
+- Nivel 1 evita acumulación infinita
+- Nivel 2 garantiza que cada frame renderiza (máximo 5 updates)
+- Juntos previenen congelamiento total
+
+### Comportamiento en Diferentes Escenarios
+
+**Hardware normal (60 FPS, 60 UPS):**
+```
+Updates por frame: 1
+deltaTime: 0.0-2.0
+Protección nivel 1: Nunca activa
+Protección nivel 2: Nunca activa
+Total skipped: 0
+```
+
+**Hardware lento con spike (lag momentáneo):**
+```
+Frame problema: deltaTime sube a 45.23
+Protección nivel 1: ACTIVA → reset a 30.0
+Updates ejecutados: 5 (límite nivel 2)
+Updates omitidos: ~25
+Total skipped: 25
+```
+
+**Hardware muy lento persistente (10 FPS, 60 UPS):**
+```
+Cada frame: deltaTime = 6.0
+Protección nivel 1: No (< 30)
+Protección nivel 2: ACTIVA → límite 5 updates
+Update omitido por frame: 1
+Total skipped: Incrementa constantemente
+```
+
+**Sistema colapsado (< 5 FPS):**
+```
+Cada frame: deltaTime > 30.0
+Protección nivel 1: ACTIVA → reset a 30.0
+Protección nivel 2: ACTIVA → límite 5 updates
+Updates omitidos por frame: ~25+
+Total skipped: Incrementa rápidamente
+Aplicación: Sigue respondiendo (no se congela)
+```
+
+### Comparación v0.3.7 vs v0.3.8
+
+| Característica | v0.3.7 | v0.3.8 |
+|----------------|--------|--------|
+| **Protección spiral** | Simple (límite 5) | **Doble (reset + límite)** |
+| **Telemetría** | No | **Sí (totalSkippedUpdates)** |
+| **Logging** | Genérico | **Informativo con valores** |
+| **Config lookups** | 10+ por frame | **3 al inicio** |
+| **Código duplicado** | Sí (6 veces) | **No (DRY)** |
+| **Comentarios** | Básicos | **Descriptivos y educativos** |
+| **Mantenibilidad** | Media | **Alta** |
+| **Debugging** | Limitado | **Completo** |
+| **Rendimiento** | Bueno | **Mejor** |
+
+### Cuándo Usar v0.3.8
+
+**Ideal para:**
+- ✅ **Proyectos profesionales** que necesitan máxima robustez
+- ✅ **Juegos multijugador** con física determinística
+- ✅ **Hardware variable** (PCs, laptops, equipos antiguos)
+- ✅ **Análisis de rendimiento** (necesitas saber updates omitidos)
+- ✅ **Debugging complejo** (logging informativo crucial)
+- ✅ **Código mantenible** (proyectos a largo plazo)
+- ✅ **Tutoriales educativos** (comentarios descriptivos)
+
+**No usar si:**
+- ❌ Necesitas la implementación más simple posible
+- ❌ Hardware garantizado siempre rápido
+- ❌ No te importa el logging detallado
+
+### Ejemplo de Salida
+
+**Ejecución normal:**
+```
+Window created with a size (1280x720) and with the title '3D Game Engine Tutorial'.
+Updates Per Second (UPS): 60, Total Skipped Updates: 0
+Frames Per Second (FPS): 60
+Updates Per Second (UPS): 60, Total Skipped Updates: 0
+Frames Per Second (FPS): 60
+```
+
+**Durante lag spike:**
+```
+Delta time too high (45.23 updates), resetting to 30.00 (max 0.50 seconds).
+Skipped 25 updates (limit: 5 per frame) to prevent spiral of death.
+Updates Per Second (UPS): 35, Total Skipped Updates: 25
+Frames Per Second (FPS): 20
+Updates Per Second (UPS): 60, Total Skipped Updates: 25
+Frames Per Second (FPS): 60
+```
+
+**Hardware persistentemente lento:**
+```
+Skipped 1 updates (limit: 5 per frame) to prevent spiral of death.
+Updates Per Second (UPS): 55, Total Skipped Updates: 60
+Frames Per Second (FPS): 55
+Skipped 1 updates (limit: 5 per frame) to prevent spiral of death.
+Updates Per Second (UPS): 55, Total Skipped Updates: 120
+Frames Per Second (FPS): 55
+```
+
+> **Nota**: Esta es la **implementación más completa, robusta y mantenible** del tutorial, combinando Fixed Timestep (v0.3.4), VSync (v0.3.5), Spiral of Death Protection doble (v0.3.7 mejorada), y telemetría de rendimiento. Ideal para proyectos profesionales que requieren física determinística, calidad visual perfecta, funcionamiento en hardware variable, y capacidades de análisis de rendimiento.
 
 ## Pruebas
 

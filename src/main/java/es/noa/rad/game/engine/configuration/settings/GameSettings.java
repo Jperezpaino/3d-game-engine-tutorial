@@ -35,7 +35,7 @@ import es.noa.rad.game.engine.configuration.Configuration;
      *
      */
     GAME_MAXIMUM_ACCUMULATED_TIME(
-      "game.maximuM.accumulated.time",
+      "game.maximum.accumulated.time",
       Float.class
     );
 

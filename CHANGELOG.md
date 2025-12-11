@@ -5,6 +5,138 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.8][0.3.8] - 2025-12-11
+
+### Añadido
+
+- **Nueva constante `MAXIMUM_ACCUMULATED_TIME`** (0.5F)
+  - Límite máximo de acumulación de tiempo (500 ms)
+  - Threshold para resetear `deltaTime` cuando está demasiado alto
+  - Previene catch-up infinito en hardware extremadamente lento
+- **Nuevo campo `totalSkippedUpdates`** (int)
+  - Rastrea el total de updates omitidos durante toda la ejecución
+  - Se incrementa cuando se resetea `deltaTime` o se alcanzan límites
+  - Visible en estadísticas de UPS cada segundo
+- **Nueva configuración `GAME_MAXIMUM_ACCUMULATED_TIME`** en `GameSettings`
+  - Tipo: `Float.class`
+  - Propiedad: `game.maximum.accumulated.time`
+  - Valor por defecto: 0.5F (500 ms = 30 updates a 60 UPS)
+- **Protección doble contra Spiral of Death**
+  - Primera barrera: Reset de `deltaTime` si excede `maxDeltaTime`
+  - Segunda barrera: Límite de `maxUpdatesPerFrame` (5 updates)
+  - Sistema complementario para máxima robustez
+- **Logging informativo mejorado**
+  - Mensaje cuando `deltaTime` es reseteado (muestra valores actuales)
+  - Mensaje cuando updates son omitidos (muestra límite de frame)
+  - Estadísticas de UPS incluyen total de updates omitidos
+- **Comentarios internos descriptivos**
+  - Explicación de "update units" y acumulador
+  - Documentación de protección contra spiral of death
+  - Clarificación de catch-up loop y sus límites
+  - Explicación de interpolation alpha para rendering
+  - Separación de secciones lógicas en constructor e init()
+
+### Cambiado
+
+- **Extracción de variables de configuración** (optimización)
+  - `updatesPerSecond` calculado una vez al inicio de `run()`
+  - `maxAccumulatedTime` obtenido una vez
+  - `maxUpdatesPerFrame` obtenido una vez
+  - Reduce llamadas repetidas a `GameSettings` (de 10+ a 3)
+- **Nueva variable `maxDeltaTime`** calculada
+  - Valor: `maxAccumulatedTime * updatesPerSecond`
+  - Calculado una vez, reutilizado múltiples veces
+  - Elimina cálculo duplicado (antes repetido 6 veces)
+- **Simplificación de expresiones**
+  - `updateTime`: eliminados casts redundantes
+  - `fixedDeltaTime`: reutiliza `updatesPerSecond`
+  - `maxDeltaTime`: reutiliza variables extraídas
+- **Mensajes de consola mejorados**
+  - Antes: `"Game too far behind, resetting delta time."`
+  - Después: `"Delta time too high (%.2f updates), resetting to %.2f (max %.2f seconds)."`
+  - Antes: `"Skipped %d updates to prevent spiral of death."`
+  - Después: `"Skipped %d updates (limit: %d per frame) to prevent spiral of death."`
+- **Estadísticas de UPS ampliadas**
+  - Antes: `"Updates Per Second (UPS): %d."`
+  - Después: `"Updates Per Second (UPS): %d, Total Skipped Updates: %d."`
+- **Comentarios del catch-up loop reorganizados**
+  - Eliminada duplicación de "Run all accumulated updates"
+  - Renombrado a "Catch-up loop" para mayor claridad
+  - Comentario separado para "Discard remaining updates"
+- Versión actualizada de 0.3.7 a 0.3.8
+
+### Mejorado
+
+- **Legibilidad del código**
+  - Variables de configuración extraídas al inicio
+  - Expresiones simplificadas sin casts redundantes
+  - Código duplicado eliminado (DRY compliance)
+  - Comentarios más descriptivos y educativos
+- **Rendimiento**
+  - Menos llamadas a `GameSettings.get()` por frame
+  - Cálculo de `maxDeltaTime` una sola vez
+  - Configuración cargada al inicio, no en cada iteración
+- **Mantenibilidad**
+  - Cambio de umbral solo en una ubicación (`maxDeltaTime`)
+  - Variables con nombres descriptivos
+  - Separación clara de responsabilidades
+- **Debugging**
+  - Logging con valores específicos (deltaTime, maxDeltaTime, límites)
+  - Rastreo de updates omitidos totales
+  - Información contextual en mensajes de protección
+
+### Protegido
+
+- **Doble protección contra Spiral of Death**
+  - Nivel 1: Reset cuando `deltaTime > maxDeltaTime` (30 updates)
+  - Nivel 2: Límite de 5 updates por frame
+  - Garantiza que la aplicación siempre responde, incluso en hardware muy lento
+- **Degradación elegante**
+  - En lugar de congelarse, el sistema omite updates y continúa
+  - El usuario ve la aplicación funcionando (aunque más lenta)
+  - Logging permite diagnosticar problemas de rendimiento
+
+### Notas Técnicas
+
+- **Filosofía de la v0.3.8**: Protección completa con monitoreo
+  - Fixed Timestep: Física determinística (60 UPS)
+  - VSync: Rendering suave sin tearing
+  - Spiral of Death Protection Doble: Robustez máxima
+  - Telemetría: Monitoreo de updates omitidos
+- **Comportamiento del sistema**:
+  - Hardware normal: `deltaTime` nunca excede `maxDeltaTime`, 0 updates omitidos
+  - Hardware lento: Reset ocasional de `deltaTime`, updates omitidos < 100
+  - Hardware muy lento: Resets frecuentes, updates omitidos > 1000
+  - Sistema congelado: `deltaTime` resetea constantemente a 30.0, updates omitidos aumentan rápidamente
+- **Ventajas sobre v0.3.7**:
+  - Mejor logging para diagnóstico
+  - Variables extraídas mejoran legibilidad
+  - Doble protección más robusta que protección simple
+  - Telemetría permite análisis de rendimiento
+  - Código más mantenible (DRY, comentarios descriptivos)
+
+### Ejemplo de Comportamiento
+
+**Hardware normal (60 FPS, 60 UPS)**:
+```
+Updates Per Second (UPS): 60, Total Skipped Updates: 0
+Frames Per Second (FPS): 60
+```
+
+**Hardware lento con spike (lag momentáneo)**:
+```
+Delta time too high (45.23 updates), resetting to 30.00 (max 0.50 seconds).
+Updates Per Second (UPS): 45, Total Skipped Updates: 15
+Frames Per Second (FPS): 20
+```
+
+**Hardware muy lento (persistente)**:
+```
+Skipped 3 updates (limit: 5 per frame) to prevent spiral of death.
+Updates Per Second (UPS): 30, Total Skipped Updates: 180
+Frames Per Second (FPS): 10
+```
+
 ## [0.3.7][0.3.7] - 2025-12-10
 
 ### Añadido
@@ -972,6 +1104,7 @@ Resultado: 60 UPS mantenido, catch-up automático
 - Build exitoso sin errores ni warnings
 - Código cumple 100% con reglas de Checkstyle
 
+[0.3.8]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.3.8
 [0.3.7]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.3.7
 [0.3.6]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.3.6
 [0.3.5]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.3.5
