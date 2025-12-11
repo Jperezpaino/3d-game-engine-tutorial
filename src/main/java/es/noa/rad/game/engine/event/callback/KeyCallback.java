@@ -20,7 +20,7 @@ import es.noa.rad.game.engine.event.KeyboardEventHandler;
         final int _keyCode,
         final int _scanCode,
         final int _action,
-        final int _moddifier) {
+        final int _modifier) {
       if (_keyCode != GLFW.GLFW_KEY_UNKNOWN) {
         KeyboardEventHandler.get()
           .setKeyPressed(_keyCode, (_action != GLFW.GLFW_RELEASE));

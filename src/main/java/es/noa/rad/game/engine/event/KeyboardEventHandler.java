@@ -78,7 +78,8 @@ import es.noa.rad.game.engine.event.callback.KeyCallback;
      */
     public boolean isKeyPressed(
         final int _keyCode) {
-      if (_keyCode < GLFW.GLFW_KEY_LAST) {
+      if ((_keyCode >= 0)
+       && (_keyCode < GLFW.GLFW_KEY_LAST)) {
         return this.keyPressed[_keyCode];
       }
       return false;
@@ -92,7 +93,8 @@ import es.noa.rad.game.engine.event.callback.KeyCallback;
     public void setKeyPressed(
         final int _keyCode,
         final boolean _keyStatus) {
-      if (_keyCode < GLFW.GLFW_KEY_LAST) {
+      if ((_keyCode >= 0)
+       && (_keyCode < GLFW.GLFW_KEY_LAST)) {
         this.keyPressed[_keyCode] = _keyStatus;
       }
     }

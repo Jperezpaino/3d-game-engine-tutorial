@@ -876,7 +876,321 @@ Frames Per Second (FPS): 144  (Monitor 144Hz)
 
 > **Nota**: Esta versión combina Fixed Timestep (v0.3.4), VSync (v0.3.5), y Spiral of Death Protection (v0.3.4). Versión robusta ideal para proyectos que requieren física determinística, calidad visual perfecta, y funcionamiento en hardware variable.
 
-#### v0.3.10 - Configuración Centralizada con Tres Niveles de Fallback (Implementación Actual)
+#### v0.4.0 - Sistema de Input de Teclado (Implementación Actual)
+
+La versión 0.4.0 introduce el **sistema de manejo de input de teclado**, permitiendo detectar cuando las teclas están presionadas. Implementación simple y eficiente usando GLFW callbacks:
+
+##### Nuevo Sistema de Input
+
+**Componentes principales**:
+```
+KeyboardEventHandler (Singleton)
+├─> boolean[] keyPressed         // Estado de todas las teclas
+├─> GLFWKeyCallback callback     // Callback de GLFW
+├─> isKeyPressed(keyCode)        // Consultar estado
+└─> setKeyPressed(keyCode, bool) // Actualizar estado
+
+KeyCallback (GLFWKeyCallback)
+└─> invoke()                     // Procesa eventos de GLFW
+    └─> KeyboardEventHandler.setKeyPressed()
+```
+
+##### Implementación
+
+**KeyboardEventHandler (Singleton)**:
+```java
+package es.noa.rad.game.engine.event;
+
+public final class KeyboardEventHandler {
+    
+    private static KeyboardEventHandler instance = null;
+    private final GLFWKeyCallback glfwKeyCallback;
+    private final boolean[] keyPressed;
+    
+    private KeyboardEventHandler() {
+        this.keyPressed = new boolean[GLFW.GLFW_KEY_LAST];
+        this.glfwKeyCallback = new KeyCallback();
+    }
+    
+    public static KeyboardEventHandler get() {
+        if (instance == null) {
+            createInstance();
+        }
+        return instance;
+    }
+    
+    /**
+     * Verifica si una tecla está presionada.
+     * 
+     * @param _keyCode Código de tecla GLFW (ej: GLFW_KEY_W)
+     * @return true si está presionada, false en caso contrario
+     */
+    public boolean isKeyPressed(final int _keyCode) {
+        if ((_keyCode >= 0) && (_keyCode < GLFW.GLFW_KEY_LAST)) {
+            return this.keyPressed[_keyCode];
+        }
+        return false;
+    }
+    
+    /**
+     * Actualiza el estado de una tecla.
+     * Llamado internamente por KeyCallback.
+     */
+    public void setKeyPressed(final int _keyCode, final boolean _keyStatus) {
+        if ((_keyCode >= 0) && (_keyCode < GLFW.GLFW_KEY_LAST)) {
+            this.keyPressed[_keyCode] = _keyStatus;
+        }
+    }
+    
+    public GLFWKeyCallback getGlfwKeyCallback() {
+        return this.glfwKeyCallback;
+    }
+    
+    public void close() {
+        this.glfwKeyCallback.free();  // Liberar recursos
+    }
+}
+```
+
+**KeyCallback (Procesa eventos de GLFW)**:
+```java
+package es.noa.rad.game.engine.event.callback;
+
+public final class KeyCallback extends GLFWKeyCallback {
+    
+    @Override
+    public void invoke(
+        final long _window,
+        final int _keyCode,
+        final int _scanCode,
+        final int _action,
+        final int _modifier) {
+        
+        if (_keyCode != GLFW.GLFW_KEY_UNKNOWN) {
+            // Actualizar estado: presionada si action != RELEASE
+            KeyboardEventHandler.get()
+                .setKeyPressed(_keyCode, (_action != GLFW.GLFW_RELEASE));
+        }
+    }
+}
+```
+
+**Integración en Window.init()**:
+```java
+// Registrar callback de teclado en GLFW
+GLFW.glfwSetKeyCallback(
+    this.glfwWindow,
+    KeyboardEventHandler.get().getGlfwKeyCallback()
+);
+```
+
+**Cleanup en Window.close()**:
+```java
+// Liberar recursos del callback
+KeyboardEventHandler.get().close();
+GLFW.glfwDestroyWindow(this.glfwWindow);
+GLFW.glfwTerminate();
+```
+
+##### Funcionalidad ESC para Salir
+
+**Application.run() con control de ESC**:
+```java
+private boolean running;
+
+private void start() {
+    this.running = true;
+}
+
+@Override
+public void run() {
+    this.init();
+    
+    while ((this.running)
+        && (!Window.get().shouldClose())
+        && (GameTiming.get().tick())) {
+        
+        // Cerrar aplicación con tecla ESC
+        if (KeyboardEventHandler.get().isKeyPressed(GLFW.GLFW_KEY_ESCAPE)) {
+            this.running = false;
+        }
+        
+        Window.get().swapBuffers();
+    }
+    
+    this.close();
+    this.stop();
+}
+```
+
+##### Ejemplos de Uso
+
+**Ejemplo 1: Movimiento básico (WASD)**:
+```java
+public void update(final float _deltaTime) {
+    // Movimiento hacia adelante/atrás
+    if (KeyboardEventHandler.get().isKeyPressed(GLFW.GLFW_KEY_W)) {
+        player.moveForward(_deltaTime);
+    }
+    if (KeyboardEventHandler.get().isKeyPressed(GLFW.GLFW_KEY_S)) {
+        player.moveBackward(_deltaTime);
+    }
+    
+    // Movimiento lateral
+    if (KeyboardEventHandler.get().isKeyPressed(GLFW.GLFW_KEY_A)) {
+        player.moveLeft(_deltaTime);
+    }
+    if (KeyboardEventHandler.get().isKeyPressed(GLFW.GLFW_KEY_D)) {
+        player.moveRight(_deltaTime);
+    }
+    
+    // Saltar
+    if (KeyboardEventHandler.get().isKeyPressed(GLFW.GLFW_KEY_SPACE)) {
+        player.jump();
+    }
+}
+```
+
+**Ejemplo 2: Múltiples teclas simultáneas**:
+```java
+// Correr (Shift + W)
+if (KeyboardEventHandler.get().isKeyPressed(GLFW.GLFW_KEY_LEFT_SHIFT)
+    && KeyboardEventHandler.get().isKeyPressed(GLFW.GLFW_KEY_W)) {
+    player.run(_deltaTime);
+} else if (KeyboardEventHandler.get().isKeyPressed(GLFW.GLFW_KEY_W)) {
+    player.walk(_deltaTime);
+}
+```
+
+**Ejemplo 3: Teclas de acción**:
+```java
+if (KeyboardEventHandler.get().isKeyPressed(GLFW.GLFW_KEY_E)) {
+    player.interact();
+}
+
+if (KeyboardEventHandler.get().isKeyPressed(GLFW.GLFW_KEY_R)) {
+    player.reload();
+}
+
+if (KeyboardEventHandler.get().isKeyPressed(GLFW.GLFW_KEY_TAB)) {
+    ui.toggleInventory();
+}
+```
+
+##### Características
+
+| Característica | Descripción |
+|----------------|-------------|
+| **Patrón Singleton** | `KeyboardEventHandler.get()` acceso global |
+| **Eficiencia** | Array booleano O(1) para consultas |
+| **Validación robusta** | Verifica límites superior e inferior (>= 0 y < GLFW_KEY_LAST) |
+| **Integración GLFW** | Callback registrado automáticamente en Window |
+| **Cleanup automático** | Liberación de recursos en Window.close() |
+| **ESC para salir** | Funcionalidad estándar implementada |
+| **Thread-safe** | Singleton con createInstance() sincronizado |
+
+##### Arquitectura del Sistema
+
+```
+┌──────────────────────────────────────────────────┐
+│  Usuario presiona tecla                          │
+└────────────────────┬─────────────────────────────┘
+                     ↓
+┌──────────────────────────────────────────────────┐
+│  GLFW Window                                     │
+│  glfwSetKeyCallback()                            │
+└────────────────────┬─────────────────────────────┘
+                     ↓
+┌──────────────────────────────────────────────────┐
+│  KeyCallback.invoke()                            │
+│  ┌────────────────────────────────────────────┐  │
+│  │ if (keyCode != GLFW_KEY_UNKNOWN)           │  │
+│  │   KeyboardEventHandler.setKeyPressed(...)  │  │
+│  └────────────────────────────────────────────┘  │
+└────────────────────┬─────────────────────────────┘
+                     ↓
+┌──────────────────────────────────────────────────┐
+│  KeyboardEventHandler (Singleton)                │
+│  ┌────────────────────────────────────────────┐  │
+│  │ boolean[] keyPressed                       │  │
+│  │ keyPressed[keyCode] = (action != RELEASE)  │  │
+│  └────────────────────────────────────────────┘  │
+└────────────────────┬─────────────────────────────┘
+                     ↓
+┌──────────────────────────────────────────────────┐
+│  Application / Game Logic                        │
+│  ┌────────────────────────────────────────────┐  │
+│  │ if (isKeyPressed(GLFW_KEY_W))              │  │
+│  │   player.move()                            │  │
+│  └────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────┘
+```
+
+##### Códigos de Tecla GLFW Comunes
+
+```java
+// Letras
+GLFW.GLFW_KEY_W        // W
+GLFW.GLFW_KEY_A        // A
+GLFW.GLFW_KEY_S        // S
+GLFW.GLFW_KEY_D        // D
+
+// Funciones
+GLFW.GLFW_KEY_SPACE    // Espacio
+GLFW.GLFW_KEY_ESCAPE   // ESC
+GLFW.GLFW_KEY_ENTER    // Enter
+GLFW.GLFW_KEY_TAB      // Tab
+
+// Modificadores
+GLFW.GLFW_KEY_LEFT_SHIFT   // Shift izquierdo
+GLFW.GLFW_KEY_LEFT_CONTROL // Ctrl izquierdo
+GLFW.GLFW_KEY_LEFT_ALT     // Alt izquierdo
+
+// Flechas
+GLFW.GLFW_KEY_UP       // Flecha arriba
+GLFW.GLFW_KEY_DOWN     // Flecha abajo
+GLFW.GLFW_KEY_LEFT     // Flecha izquierda
+GLFW.GLFW_KEY_RIGHT    // Flecha derecha
+
+// Números
+GLFW.GLFW_KEY_1 ... GLFW.GLFW_KEY_9  // 1-9
+GLFW.GLFW_KEY_0                       // 0
+```
+
+##### Validaciones de Seguridad
+
+**Prevención de ArrayIndexOutOfBoundsException**:
+```java
+// Validación completa de límites
+public boolean isKeyPressed(final int _keyCode) {
+    if ((_keyCode >= 0) && (_keyCode < GLFW.GLFW_KEY_LAST)) {
+        return this.keyPressed[_keyCode];  // Seguro
+    }
+    return false;  // KeyCode inválido
+}
+```
+
+**Filtrado de teclas desconocidas**:
+```java
+// En KeyCallback.invoke()
+if (_keyCode != GLFW.GLFW_KEY_UNKNOWN) {
+    // Solo procesar teclas válidas
+    KeyboardEventHandler.get().setKeyPressed(_keyCode, ...);
+}
+```
+
+##### Mejoras Futuras (Próximas Versiones)
+
+⏳ **Detección de "just pressed"**: Diferenciar presionado vs mantenido  
+⏳ **Soporte de modificadores**: APIs para Shift/Ctrl/Alt  
+⏳ **Reset al perder foco**: Limpiar estado cuando ventana pierde foco  
+⏳ **Constantes de teclas**: Wrapper para códigos comunes  
+⏳ **Input de mouse**: Sistema similar para ratón  
+⏳ **Gamepad support**: Controladores y joysticks  
+
+> **Nota**: Esta versión establece la base del sistema de input con una implementación simple, eficiente y robusta. Funcionalidad mínima pero completa para control de teclado básico. Ideal para aprender los fundamentos del manejo de input en game engines.
+
+#### v0.3.10 - Configuración Centralizada con Tres Niveles de Fallback
 
 La versión 0.3.10 mejora el sistema de configuración eliminando **toda la duplicación de constantes** y centralizando los valores por defecto en las enumeraciones con un sistema de **tres niveles de fallback**:
 
@@ -1803,6 +2117,10 @@ El archivo de configuración está en `doc/checkstyle/checkstyle-rules.xml`.
             core/
               GameTiming.java
               Window.java
+            event/
+              KeyboardEventHandler.java
+              callback/
+                KeyCallback.java
       resources/
         es/noa/rad/game/
           settings/

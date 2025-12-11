@@ -5,6 +5,176 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0][0.4.0] - 2025-12-11
+
+### Añadido
+
+- **Sistema de manejo de input de teclado**
+  - Nueva clase `KeyboardEventHandler` (singleton pattern)
+  - Gestiona el estado de todas las teclas del teclado
+  - Array booleano `keyPressed[]` para tracking eficiente
+  - Integración con callbacks de GLFW
+- **Nueva clase `KeyCallback`**
+  - Extiende `GLFWKeyCallback` de LWJGL
+  - Procesa eventos de teclado de GLFW
+  - Actualiza automáticamente el estado en `KeyboardEventHandler`
+  - Filtra teclas desconocidas (`GLFW_KEY_UNKNOWN`)
+- **Paquete `es.noa.rad.game.engine.event`**
+  - Estructura para sistema de eventos
+  - Subpaquete `callback` para callbacks específicos
+  - Preparado para futuros eventos (mouse, gamepad, etc.)
+- **API de consulta de teclado**
+  - `isKeyPressed(int keyCode)` - Verifica si una tecla está presionada
+  - `setKeyPressed(int keyCode, boolean status)` - Actualiza estado de tecla
+  - `getGlfwKeyCallback()` - Obtiene el callback de GLFW
+  - `close()` - Libera recursos del callback
+- **Funcionalidad ESC para salir**
+  - Tecla ESCAPE cierra la aplicación
+  - Implementado en el game loop de `Application`
+  - Control manual con campo `running` en `Application`
+- **Validación de keyCodes**
+  - Verificación de límites superior e inferior (>= 0 y < GLFW_KEY_LAST)
+  - Previene ArrayIndexOutOfBoundsException
+  - Retorna false para códigos inválidos
+
+### Cambiado
+
+- **`Window.init()` actualizado**
+  - Registra `KeyCallback` en GLFW con `glfwSetKeyCallback()`
+  - Integración del sistema de input en la inicialización de ventana
+- **`Window.close()` mejorado**
+  - Llama a `KeyboardEventHandler.get().close()` para liberar recursos
+  - Gestión correcta de cleanup de callbacks
+- **`Application` con control manual de ejecución**
+  - Añadido campo `running` para control explícito del loop
+  - Método `start()` ahora inicializa `running = true`
+  - Método `stop()` actualizado para `running = false` y detener `GameTiming`
+  - Game loop verifica `running`, `shouldClose()` y `tick()`
+- **`Application.run()` con input polling**
+  - Verifica tecla ESCAPE en cada frame
+  - Establece `running = false` cuando se presiona ESC
+  - Permite cerrar la aplicación con teclado
+- Versión actualizada de 0.3.10 a 0.4.0
+
+### Corregido
+
+- **Typo en parámetro de `KeyCallback.invoke()`**
+  - `_moddifier` → `_modifier` (ortografía correcta)
+  - Mejora la claridad del código
+
+### Notas Técnicas
+
+- **Filosofía de la v0.4.0**: Input básico de teclado simple y funcional
+  - Sistema singleton para acceso global al estado del teclado
+  - Integración directa con GLFW sin capas adicionales
+  - API minimalista pero efectiva
+  - Base para futuras extensiones (mouse, gamepad)
+- **Patrón de diseño**:
+  - `KeyboardEventHandler` → Singleton que gestiona estado
+  - `KeyCallback` → Puente entre GLFW y el handler
+  - `Application` → Consumidor del sistema de input
+- **Decisiones de implementación**:
+  - Array booleano en lugar de HashMap para máxima eficiencia
+  - Validación de keyCode para robustez
+  - Callback registrado en Window (acoplamiento justificado)
+  - Liberación explícita de recursos en close()
+- **Limitaciones conocidas (a mejorar en futuras versiones)**:
+  - No distingue entre "tecla presionada" vs "tecla mantenida"
+  - No soporta eventos de modificadores (Shift, Ctrl, Alt) separadamente
+  - No resetea estado al perder foco de ventana
+  - No hay constantes para teclas comunes
+
+### Ejemplo de Uso
+
+**Verificar si una tecla está presionada**:
+```java
+import org.lwjgl.glfw.GLFW;
+import es.noa.rad.game.engine.event.KeyboardEventHandler;
+
+// En el game loop o método update
+if (KeyboardEventHandler.get().isKeyPressed(GLFW.GLFW_KEY_W)) {
+    // Mover hacia adelante
+    player.moveForward();
+}
+
+if (KeyboardEventHandler.get().isKeyPressed(GLFW.GLFW_KEY_SPACE)) {
+    // Saltar
+    player.jump();
+}
+```
+
+**Implementación en Application.run()**:
+```java
+while ((this.running)
+    && (!Window.get().shouldClose())
+    && (GameTiming.get().tick())) {
+
+    // Cerrar con ESC
+    if (KeyboardEventHandler.get().isKeyPressed(GLFW.GLFW_KEY_ESCAPE)) {
+        this.running = false;
+    }
+
+    Window.get().swapBuffers();
+}
+```
+
+**Integración en Window.init()**:
+```java
+// Registrar callback de teclado
+GLFW.glfwSetKeyCallback(
+    this.glfwWindow,
+    KeyboardEventHandler.get().getGlfwKeyCallback()
+);
+```
+
+**Liberación de recursos en Window.close()**:
+```java
+// Liberar callback de teclado
+KeyboardEventHandler.get().close();
+
+// Destruir ventana
+GLFW.glfwDestroyWindow(this.glfwWindow);
+GLFW.glfwTerminate();
+```
+
+**Arquitectura del sistema**:
+```
+┌─────────────────────────────────────────────┐
+│  GLFW Window                                │
+│  ┌───────────────────────────────────────┐  │
+│  │ Usuario presiona tecla                │  │
+│  └───────────┬───────────────────────────┘  │
+└──────────────┼──────────────────────────────┘
+               ↓
+┌─────────────────────────────────────────────┐
+│  glfwSetKeyCallback()                       │
+└──────────────┬──────────────────────────────┘
+               ↓
+┌─────────────────────────────────────────────┐
+│  KeyCallback.invoke()                       │
+│  ┌───────────────────────────────────────┐  │
+│  │ if (keyCode != GLFW_KEY_UNKNOWN)      │  │
+│  │   KeyboardEventHandler.setKeyPressed()│  │
+│  └───────────────────────────────────────┘  │
+└──────────────┬──────────────────────────────┘
+               ↓
+┌─────────────────────────────────────────────┐
+│  KeyboardEventHandler (Singleton)           │
+│  ┌───────────────────────────────────────┐  │
+│  │ boolean[] keyPressed                  │  │
+│  │ keyPressed[keyCode] = (action != REL) │  │
+│  └───────────────────────────────────────┘  │
+└──────────────┬──────────────────────────────┘
+               ↓
+┌─────────────────────────────────────────────┐
+│  Application / Game Logic                   │
+│  ┌───────────────────────────────────────┐  │
+│  │ if (isKeyPressed(GLFW_KEY_W))         │  │
+│  │   player.move()                       │  │
+│  └───────────────────────────────────────┘  │
+└─────────────────────────────────────────────┘
+```
+
 ## [0.3.10][0.3.10] - 2025-12-11
 
 ### Añadido
@@ -1456,6 +1626,8 @@ Resultado: 60 UPS mantenido, catch-up automático
 - Build exitoso sin errores ni warnings
 - Código cumple 100% con reglas de Checkstyle
 
+[0.4.0]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.4.0
+[0.3.10]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.3.10
 [0.3.9]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.3.9
 [0.3.8]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.3.8
 [0.3.7]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.3.7
