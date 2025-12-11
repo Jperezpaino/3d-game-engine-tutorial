@@ -876,7 +876,351 @@ Frames Per Second (FPS): 144  (Monitor 144Hz)
 
 > **Nota**: Esta versión combina Fixed Timestep (v0.3.4), VSync (v0.3.5), y Spiral of Death Protection (v0.3.4). Versión robusta ideal para proyectos que requieren física determinística, calidad visual perfecta, y funcionamiento en hardware variable.
 
-#### v0.3.8 - Spiral of Death Protegido con Telemetría (Implementación Actual)
+#### v0.3.9 - Separación de Responsabilidades con GameTiming (Implementación Actual)
+
+La versión 0.3.9 representa una **refactorización arquitectónica mayor** que extrae toda la lógica del game loop de `Application` a una nueva clase `GameTiming`:
+
+##### Arquitectura
+
+**Antes (v0.3.8)**: Todo en `Application` (369 líneas)
+```
+Application
+├─> Timing logic (~140 líneas)
+├─> Spiral protection
+├─> UPS/FPS metrics
+├─> Window management
+└─> Configuration
+```
+
+**Después (v0.3.9)**: Separación de responsabilidades
+```
+Application (~99 líneas)          GameTiming (402 líneas, Singleton)
+├─> Window setup                  ├─> Timing logic
+├─> Configuration                 ├─> Spiral protection
+├─> Callbacks setup               ├─> UPS/FPS metrics
+└─> Main loop (simple)            ├─> Update/Render callbacks
+                                  └─> Fixed timestep control
+```
+
+##### Nueva Clase GameTiming
+
+```java
+package es.noa.rad.game.engine.core;
+
+public final class GameTiming {
+    
+    /* Singleton instance. */
+    private static GameTiming instance;
+    
+    /* Constants. */
+    public static final double FRAMERATE = 60.0D;
+    public static final int MAXIMUM_UPDATES_PER_FRAME = 5;
+    public static final float MAXIMUM_ACCUMULATED_TIME = 0.5F;
+    
+    /* Timing fields. */
+    private boolean running;
+    private double deltaTime;
+    private long previousTime;
+    private double updateTime;
+    private float fixedDeltaTime;
+    private double maxDeltaTime;
+    
+    /* Metrics. */
+    private int totalSkippedUpdates;
+    private int ups, fps;
+    private long upsTime, fpsTime;
+    
+    /* Callbacks (optional, with fallback). */
+    private Consumer<Float> updateCallback;
+    private Consumer<Float> renderCallback;
+    
+    /**
+     * Gets the singleton instance of GameTiming.
+     */
+    public static GameTiming get() {
+        if (instance == null) {
+            instance = createInstance();
+        }
+        return instance;
+    }
+    
+    /**
+     * Initializes timing configuration from GameSettings.
+     */
+    public void init() {
+        // Load configuration values once
+        final double updatesPerSecond = GameSettings.GAME_UPDATES_PER_SECOND
+            .get(FRAMERATE);
+        final float maxAccumulatedTime = GameSettings.GAME_MAXIMUM_ACCUMULATED_TIME
+            .get(MAXIMUM_ACCUMULATED_TIME);
+        final int maxUpdatesPerFrame = GameSettings.GAME_MAXIMUM_UPDATES_PER_FRAME
+            .get(MAXIMUM_UPDATES_PER_FRAME);
+        
+        // Calculate timing constants
+        this.updateTime = NANOSECONDS_IN_SECOND / updatesPerSecond;
+        this.fixedDeltaTime = (float) (1.0D / updatesPerSecond);
+        this.maxDeltaTime = maxAccumulatedTime * updatesPerSecond;
+    }
+    
+    /**
+     * Configures the update callback.
+     */
+    public GameTiming updateCallback(final Consumer<Float> _callback) {
+        this.updateCallback = _callback;
+        return this;
+    }
+    
+    /**
+     * Configures the render callback.
+     */
+    public GameTiming renderCallback(final Consumer<Float> _callback) {
+        this.renderCallback = _callback;
+        return this;
+    }
+    
+    /**
+     * Processes one complete frame of the game loop.
+     */
+    public boolean tick() {
+        if (!this.running) return false;
+        
+        // Calculate delta time since last frame
+        final long currentTime = System.nanoTime();
+        this.deltaTime += (currentTime - this.previousTime) / this.updateTime;
+        this.previousTime = currentTime;
+        
+        // PROTECTION 1: Reset if spiral of death detected
+        if (this.deltaTime > this.maxDeltaTime) {
+            final int skippedUpdates = (int) (this.deltaTime - this.maxDeltaTime);
+            this.totalSkippedUpdates += skippedUpdates;
+            LOGGER.debug(...);
+            this.deltaTime = 0D;
+        }
+        
+        // PROTECTION 2: Limit updates per frame
+        int updates = 0;
+        while (this.deltaTime >= 1.0D && updates < maxUpdatesPerFrame) {
+            this.update(this.fixedDeltaTime);
+            this.deltaTime--;
+            updates++;
+        }
+        
+        // Discard excess accumulated time
+        if (this.deltaTime >= 1.0D) {
+            final int discarded = (int) this.deltaTime;
+            this.totalSkippedUpdates += discarded;
+            LOGGER.debug(...);
+            this.deltaTime = 0D;
+        }
+        
+        // Render with interpolation
+        final float alpha = (float) this.deltaTime;
+        this.render(alpha);
+        
+        return true;
+    }
+    
+    /* Private methods with hybrid callback pattern. */
+    private void update(final float _deltaTime) {
+        if (this.updateCallback != null) {
+            this.updateCallback.accept(_deltaTime);
+        } else {
+            Window.get().update(_deltaTime);  // Fallback
+        }
+        // ... UPS metrics
+    }
+    
+    private void render(final float _alpha) {
+        if (this.renderCallback != null) {
+            this.renderCallback.accept(_alpha);
+        } else {
+            Window.get().render(_alpha);  // Fallback
+        }
+        // ... FPS metrics
+    }
+}
+```
+
+##### Application Simplificado
+
+```java
+@Override
+public void run() {
+    this.init();
+    
+    // Simple loop: GameTiming handles everything
+    while (!Window.shouldClose() && GameTiming.get().tick()) {
+        Window.get().swapBuffers();
+    }
+    
+    this.close();
+    this.stop();
+}
+
+private void init() {
+    Configuration.get().init();
+    Window.get().init(width, height, title);
+    
+    if (GameSettings.GAME_VERTICAL_SYNCHRONIZATION.get(true)) {
+        Window.get().enableVSync();
+    }
+    
+    // Configure callbacks (optional)
+    GameTiming.get().updateCallback(dt -> Window.get().update(dt));
+    GameTiming.get().renderCallback(dt -> Window.get().render(dt));
+    GameTiming.get().init();
+}
+```
+
+##### Características de la v0.3.9
+
+| Aspecto | Descripción |
+|---------|-------------|
+| **Separación de Responsabilidades** | `Application` solo orquesta, `GameTiming` gestiona el loop |
+| **Singleton Pattern** | Acceso global consistente vía `GameTiming.get()` |
+| **Hybrid Callbacks** | Callbacks opcionales con fallback a `Window.get()` |
+| **Testabilidad** | `GameTiming` se puede testear sin Window/GLFW |
+| **Reutilización** | `GameTiming` puede usarse en diferentes contextos |
+| **Simplicidad** | `Application` reducido de 369 a ~99 líneas (-73%) |
+| **Método `tick()`** | Procesa frame completo, retorna si debe continuar |
+| **Lifecycle Público** | `init()`, `start()`, `stop()` son públicos |
+
+##### Ventajas sobre v0.3.8
+
+✅ **Arquitectura más limpia**: Cada clase tiene un propósito único  
+✅ **Mejor testabilidad**: Game loop sin dependencias de GLFW/OpenGL  
+✅ **Mayor reutilización**: `GameTiming` puede usarse en herramientas, servidores headless  
+✅ **Más mantenible**: Cambios en timing no afectan `Application`  
+✅ **Flexibilidad**: Callbacks permiten diferentes implementaciones  
+✅ **Extensibilidad**: Añadir features en `GameTiming` sin tocar `Application`  
+✅ **Misma robustez**: Mantiene doble protección y telemetría de v0.3.8  
+
+##### Comparación de Código
+
+**Antes (v0.3.8)**: 369 líneas en Application
+```java
+// Application.java - Muchos campos
+private boolean running;
+private double deltaTime;
+private long previousTime;
+private int totalSkippedUpdates;
+private int ups, fps;
+private long upsTime, fpsTime;
+// ... muchos más
+
+@Override
+public void run() {
+    // ... 140+ líneas de lógica del game loop
+    while (running && !Window.shouldClose()) {
+        final long currentTime = System.nanoTime();
+        deltaTime += (currentTime - previousTime) / updateTime;
+        previousTime = currentTime;
+        
+        // ... mucha lógica compleja
+    }
+}
+```
+
+**Después (v0.3.9)**: 99 líneas en Application + 402 en GameTiming
+```java
+// Application.java - Sin campos de timing
+@Override
+public void run() {
+    this.init();  // Setup
+    
+    // Loop ultra simple
+    while (!Window.shouldClose() && GameTiming.get().tick()) {
+        Window.get().swapBuffers();
+    }
+    
+    this.close();
+    this.stop();
+}
+
+// GameTiming.java - Toda la lógica del loop
+public boolean tick() {
+    if (!this.running) return false;
+    // ... lógica del game loop (140 líneas)
+    return true;
+}
+```
+
+##### Uso del Sistema de Callbacks
+
+**Uso básico (sin callbacks, usa fallback)**:
+```java
+GameTiming.get().init();
+
+while (!Window.shouldClose() && GameTiming.get().tick()) {
+    Window.get().swapBuffers();
+}
+// GameTiming llama automáticamente a Window.get().update() y .render()
+```
+
+**Uso avanzado (con callbacks para testing)**:
+```java
+@Test
+public void testGameLoop() {
+    List<Float> updates = new ArrayList<>();
+    List<Float> renders = new ArrayList<>();
+    
+    GameTiming.get()
+        .updateCallback(dt -> updates.add(dt))
+        .renderCallback(alpha -> renders.add(alpha))
+        .init();
+    
+    GameTiming.get().tick();  // No requiere Window real
+    
+    assertEquals(0.0166f, updates.get(0), 0.001f);  // 1/60
+}
+```
+
+**Uso avanzado (headless server sin rendering)**:
+```java
+GameTiming.get()
+    .updateCallback(dt -> gameWorld.simulate(dt))
+    .renderCallback(alpha -> { /* no-op */ })
+    .init();
+
+while (serverRunning && GameTiming.get().tick()) {
+    networkManager.sync();  // Sincronizar con clientes
+}
+```
+
+##### Configuración
+
+Usa las mismas propiedades de v0.3.8:
+
+```properties
+# Fixed timestep configuration
+game.updates.per.second=60.0
+
+# Spiral of death protection
+game.maximum.updates.per.frame=5
+game.maximum.accumulated.time=0.5
+
+# VSync
+game.vertical.synchronization=true
+```
+
+##### Métricas de Rendimiento
+
+GameTiming mantiene las mismas métricas de v0.3.8:
+
+- **UPS** (Updates Per Second): Updates procesados por segundo
+- **FPS** (Frames Per Second): Frames renderizados por segundo
+- **Total Skipped Updates**: Contador acumulado de updates descartados
+
+Acceso a métricas:
+```java
+int ups = GameTiming.get().getUps();
+int fps = GameTiming.get().getFps();
+int skipped = GameTiming.get().getTotalSkippedUpdates();
+```
+
+> **Nota**: Esta versión mantiene toda la robustez de v0.3.8 (Fixed Timestep, VSync, doble protección, telemetría) pero con una arquitectura significativamente mejor. Ideal para proyectos que valoran separación de responsabilidades, testabilidad, y código mantenible.
+
+#### v0.3.8 - Spiral of Death Protegido con Telemetría
 
 La versión 0.3.8 mejora la v0.3.7 añadiendo **doble protección contra Spiral of Death** y **telemetría de rendimiento**:
 
@@ -1192,6 +1536,7 @@ El archivo de configuración está en `doc/checkstyle/checkstyle-rules.xml`.
                 GameSettings.java
                 WindowSettings.java
             core/
+              GameTiming.java
               Window.java
       resources/
         es/noa/rad/game/

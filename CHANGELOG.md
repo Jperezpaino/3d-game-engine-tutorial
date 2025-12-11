@@ -5,6 +5,201 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.9][0.3.9] - 2025-12-11
+
+### Añadido
+
+- **Nueva clase `GameTiming`** en `es.noa.rad.game.engine.core`
+  - Extrae toda la lógica del game loop de `Application`
+  - Singleton pattern con lazy initialization thread-safe
+  - Gestiona timing, spiral of death protection, y métricas UPS/FPS
+  - Centraliza configuración de fixed timestep y VSync
+- **Sistema de callbacks opcional**
+  - `updateCallback(Consumer<Float>)` - Callback para updates
+  - `renderCallback(Consumer<Float>)` - Callback para renders
+  - Fallback automático a `Window.get()` si no se configuran
+  - Permite desacoplamiento y testing sin dependencias
+- **Método `tick()`** público
+  - Procesa un frame completo del game loop
+  - Retorna `boolean` indicando si debe continuar
+  - Documentación Javadoc completa (11 líneas)
+  - Reemplaza lógica interna de `Application.run()`
+- **Métodos de ciclo de vida públicos**
+  - `init()` - Inicializa configuración y timing
+  - `start()` - Activa el game loop
+  - `stop()` - Detiene el game loop
+  - `get()` - Obtiene instancia singleton
+- **Constantes públicas en `GameTiming`**
+  - `FRAMERATE` (60.0D)
+  - `MAXIMUM_UPDATES_PER_FRAME` (5)
+  - `MAXIMUM_ACCUMULATED_TIME` (0.5F)
+- **Inicialización consistente de métricas**
+  - Métricas se inicializan correctamente en constructor
+  - Usa métodos `resetUps()`, `resetUpsTime()`, etc.
+  - Evita duplicación de código (DRY)
+
+### Cambiado
+
+- **`Application` significativamente simplificado**
+  - De 369 líneas a ~99 líneas (-73% de código)
+  - Eliminado campo `running` (delegado a `GameTiming`)
+  - Eliminado campo `deltaTime` (movido a `GameTiming`)
+  - Eliminados campos `previousTime`, `totalSkippedUpdates` (movidos)
+  - Eliminados campos UPS/FPS (movidos a `GameTiming`)
+  - Eliminadas constantes `FRAMERATE`, `MAXIMUM_UPDATES_PER_FRAME`, etc.
+- **`Application.run()` ultra simplificado**
+  - Antes: ~140 líneas con toda la lógica del loop
+  - Después: ~15 líneas, solo loop básico
+  - Loop: `while (!Window.shouldClose() && GameTiming.tick())`
+  - Solo responsable de `swapBuffers()`
+- **Separación de responsabilidades (SRP)**
+  - `Application`: Ciclo de vida de la aplicación
+  - `GameTiming`: Lógica del game loop y timing
+  - `Window`: Gestión de ventana y rendering
+- **Configuración de callbacks en `Application.init()`**
+  - `GameTiming.get().updateCallback(dt -> Window.get().update(dt))`
+  - `GameTiming.get().renderCallback(dt -> Window.get().render(dt))`
+  - Conecta `GameTiming` con `Window` de forma desacoplada
+- **Método `start()` en `Application` simplificado**
+  - Ahora vacío (lógica delegada a `GameTiming.start()`)
+  - Podría eliminarse en versiones futuras
+- Versión actualizada de 0.3.8 a 0.3.9
+
+### Mejorado
+
+- **Arquitectura más limpia**
+  - Separación clara de responsabilidades
+  - Cada clase tiene un propósito único y definido
+  - Menor acoplamiento entre componentes
+- **Testabilidad**
+  - `GameTiming` puede testearse sin `Window` real
+  - Callbacks permiten mocks simples
+  - No requiere GLFW/OpenGL para tests unitarios
+- **Reutilización**
+  - `GameTiming` puede usarse en diferentes contextos
+  - Headless servers (sin rendering)
+  - Herramientas (sin ventana)
+  - Múltiples engines gráficos
+- **Mantenibilidad**
+  - Código del game loop en un solo lugar
+  - Cambios en timing no afectan `Application`
+  - Más fácil de entender y modificar
+- **Documentación**
+  - Método `tick()` completamente documentado
+  - Comentarios descriptivos mantenidos
+  - Comentario "Initialize metrics" en constructor
+
+### Refactorizado
+
+- **Extracción de clase `GameTiming`**
+  - Antes: Todo en `Application`
+  - Después: Lógica separada en clase dedicada
+  - Patrón: Extract Class refactoring
+- **Constructor de `GameTiming`**
+  - Inicializa estado base (running, deltaTime, previousTime)
+  - Llama a métodos reset para métricas (DRY)
+  - Estado consistente desde creación
+- **Singleton pattern**
+  - Método `createInstance()` sincronizado
+  - Lazy initialization thread-safe
+  - Acceso global vía `get()`
+
+### Notas Técnicas
+
+- **Filosofía de la v0.3.9**: Separación de responsabilidades + Flexibilidad
+  - Fixed Timestep: Física determinística (60 UPS)
+  - VSync: Rendering suave sin tearing
+  - Spiral of Death Protection: Robustez máxima
+  - Callbacks: Desacoplamiento opcional
+  - Singleton: Acceso global consistente
+- **Patrón arquitectónico**:
+  - `Application` → Orchestrator (coordina componentes)
+  - `GameTiming` → Game Loop Engine (timing y updates)
+  - `Window` → Rendering Subsystem (gráficos)
+  - Callbacks → Dependency Injection (desacoplamiento)
+- **Ventajas del diseño**:
+  - Testing: GameTiming se puede testear aisladamente
+  - Flexibilidad: Callbacks permiten diferentes implementaciones
+  - Simplicidad: Application más fácil de entender
+  - Extensibilidad: Añadir features en GameTiming sin tocar Application
+- **Decisiones de diseño**:
+  - Callbacks con fallback: Funciona sin configuración + permite override
+  - `tick()` en lugar de `playback()`: Nombre estándar de la industria
+  - Métricas en constructor: Estado consistente desde creación
+  - `start()` público: API consistente con `stop()`
+
+### Ejemplo de Uso
+
+**Antes (v0.3.8) - Todo en Application**:
+```java
+// Application.java - 369 líneas
+private double deltaTime;
+private long previousTime;
+// ... muchos campos más
+
+@Override
+public void run() {
+    this.init();
+    
+    final double updatesPerSecond = ...;
+    final double updateTime = ...;
+    // ... cálculos de timing
+    
+    while (running && !Window.shouldClose()) {
+        // ... lógica compleja del game loop (140 líneas)
+    }
+}
+```
+
+**Después (v0.3.9) - Separado en GameTiming**:
+```java
+// Application.java - ~99 líneas
+@Override
+public void run() {
+    this.init();
+    
+    while (!Window.shouldClose() && GameTiming.get().tick()) {
+        Window.get().swapBuffers();
+    }
+    
+    this.close();
+    this.stop();
+}
+
+// GameTiming.java - 402 líneas
+public boolean tick() {
+    if (!this.running) return false;
+    
+    // ... toda la lógica del game loop
+    
+    return true;
+}
+```
+
+**Configuración de callbacks (opcional)**:
+```java
+// En Application.init()
+GameTiming.get().updateCallback(dt -> Window.get().update(dt));
+GameTiming.get().renderCallback(dt -> Window.get().render(dt));
+GameTiming.get().init();
+```
+
+**Testing sin Window (nuevo)**:
+```java
+@Test
+public void testGameTiming() {
+    GameTiming timing = GameTiming.get();
+    
+    List<Float> updates = new ArrayList<>();
+    timing.updateCallback(dt -> updates.add(dt));
+    timing.init();
+    
+    timing.tick();  // No requiere Window real
+    
+    assertEquals(0.0166f, updates.get(0), 0.001f);
+}
+```
+
 ## [0.3.8][0.3.8] - 2025-12-11
 
 ### Añadido
@@ -1104,6 +1299,7 @@ Resultado: 60 UPS mantenido, catch-up automático
 - Build exitoso sin errores ni warnings
 - Código cumple 100% con reglas de Checkstyle
 
+[0.3.9]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.3.9
 [0.3.8]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.3.8
 [0.3.7]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.3.7
 [0.3.6]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.3.6

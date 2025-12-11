@@ -30,17 +30,11 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
     /**
      *
      */
-    private boolean running;
-
-    /**
-     *
-     */
     private Application() {
       super();
 
       /* Create and start the game thread. */
       this.game = new Thread(this, "Game");
-      this.running = false;
       this.game.start();
     }
 
@@ -68,6 +62,14 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
         Window.get().enableVSync();
       }
 
+      /* Set up game timing callbacks. */
+      GameTiming.get().updateCallback(
+        deltaTime -> Window.get().update(deltaTime)
+      );
+      GameTiming.get().renderCallback(
+        deltaTime -> Window.get().render(deltaTime)
+      );
+
       GameTiming.get().init();
 
       /* Start the game loop. */
@@ -78,14 +80,12 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
      *
      */
     private void start() {
-      this.running = true;
     }
 
     /**
      *
      */
     private void stop() {
-      this.running = false;
       GameTiming.get().stop();
     }
 
@@ -101,9 +101,8 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
        * Main game loop: runs until the user closes the window.
        * VSync controls the frame rate automatically via swapBuffers().
        */
-      while ((this.running)
-          && (!Window.get().shouldClose())
-          && (GameTiming.get().playback())) {
+      while ((!Window.get().shouldClose())
+          && (GameTiming.get().tick())) {
 
         /*
          * Swap buffers and poll events.

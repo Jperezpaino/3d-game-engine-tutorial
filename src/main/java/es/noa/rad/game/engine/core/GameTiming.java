@@ -1,6 +1,7 @@
 package es.noa.rad.game.engine.core;
 
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 import es.noa.rad.game.engine.configuration.settings.GameSettings;
 
@@ -34,6 +35,16 @@ import es.noa.rad.game.engine.configuration.settings.GameSettings;
      *
      */
     private static GameTiming instance = null;
+
+    /**
+     *
+     */
+    private Consumer<Float> updateCallback;
+
+    /**
+     *
+     */
+    private Consumer<Float> renderCallback;
 
     /**
      *
@@ -108,6 +119,12 @@ import es.noa.rad.game.engine.configuration.settings.GameSettings;
       this.previousTime = System.nanoTime();
       this.deltaTime = 0D;
       this.totalSkippedUpdates = 0;
+
+      /* Initialize metrics counters and timers. */
+      this.resetUps();
+      this.resetUpsTime();
+      this.resetFps();
+      this.resetFpsTime();
     }
 
     /**
@@ -138,12 +155,6 @@ import es.noa.rad.game.engine.configuration.settings.GameSettings;
      *
      */
     public void init() {
-
-      /* Initialize metrics counters and timers. */
-      this.resetUps();
-      this.resetUpsTime();
-      this.resetFps();
-      this.resetFpsTime();
 
       /* Load configuration values once to avoid repeated lookups. */
 
@@ -180,7 +191,7 @@ import es.noa.rad.game.engine.configuration.settings.GameSettings;
     /**
      *
      */
-    private void start() {
+    public void start() {
       this.running = true;
     }
 
@@ -192,10 +203,20 @@ import es.noa.rad.game.engine.configuration.settings.GameSettings;
     }
 
     /**
+     * Processes one frame of the game loop.
+     * Handles timing accumulation, spiral of death protection,
+     * fixed timestep updates, and rendering with interpolation.
      *
-     * @return  {@code boolean}
+     * This method performs a complete frame tick:
+     * 1. Accumulates elapsed time
+     * 2. Applies spiral of death protection if needed
+     * 3. Executes fixed timestep updates (up to maxUpdatesPerFrame)
+     * 4. Renders with interpolation alpha
+     * 5. Updates FPS/UPS metrics
+     *
+     * @return {@code boolean}
      */
-    public boolean playback() {
+    public boolean tick() {
       if (!this.running) {
         return false;
       }
@@ -272,7 +293,12 @@ import es.noa.rad.game.engine.configuration.settings.GameSettings;
      */
     private void update(
         final float _deltaTime) {
-      Window.get().update(_deltaTime);
+      if (this.updateCallback != null) {
+        this.updateCallback.accept(_deltaTime);
+      } else {
+        /* Default fallback if not configured the update callback. */
+        Window.get().update(_deltaTime);
+      }
       this.increaseUps();
       final long currentTime = System.currentTimeMillis();
       if (currentTime > this.upsTime) {
@@ -292,7 +318,12 @@ import es.noa.rad.game.engine.configuration.settings.GameSettings;
      */
     private void render(
         final float _deltaTime) {
-      Window.get().render(_deltaTime);
+      if (this.renderCallback != null) {
+        this.renderCallback.accept(_deltaTime);
+      } else {
+        /* Default fallback if not configured the render callback. */
+        Window.get().render(_deltaTime);
+      }
       this.increaseFps();
       final long currentTime = System.currentTimeMillis();
       if (currentTime > this.fpsTime) {
@@ -303,6 +334,24 @@ import es.noa.rad.game.engine.configuration.settings.GameSettings;
         this.resetFpsTime();
         this.resetFps();
       }
+    }
+
+    /**
+     *
+     * @param _updateCallback {@code Consumer<Float>}
+     */
+    public void updateCallback(
+        final Consumer<Float> _updateCallback) {
+      this.updateCallback = _updateCallback;
+    }
+
+    /**
+     *
+     * @param _renderCallback {@code Consumer<Float>}
+     */
+    public void renderCallback(
+        final Consumer<Float> _renderCallback) {
+      this.renderCallback = _renderCallback;
     }
 
     /**
