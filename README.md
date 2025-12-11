@@ -39,7 +39,7 @@ java -cp target\classes es.noa.rad.game.Application
 mvn clean package
 ```
 
-El archivo JAR se generará en `target/3d-game-engine-tutorial-0.3.9.jar`
+El archivo JAR se generará en `target/3d-game-engine-tutorial-0.3.10.jar`
 
 ## Sistema de Configuración
 
@@ -876,7 +876,272 @@ Frames Per Second (FPS): 144  (Monitor 144Hz)
 
 > **Nota**: Esta versión combina Fixed Timestep (v0.3.4), VSync (v0.3.5), y Spiral of Death Protection (v0.3.4). Versión robusta ideal para proyectos que requieren física determinística, calidad visual perfecta, y funcionamiento en hardware variable.
 
-#### v0.3.9 - Separación de Responsabilidades con GameTiming (Implementación Actual)
+#### v0.3.10 - Configuración Centralizada con Tres Niveles de Fallback (Implementación Actual)
+
+La versión 0.3.10 mejora el sistema de configuración eliminando **toda la duplicación de constantes** y centralizando los valores por defecto en las enumeraciones con un sistema de **tres niveles de fallback**:
+
+##### Problema Resuelto
+
+**Antes (v0.3.9)**: Constantes duplicadas en múltiples clases
+```java
+// GameTiming.java
+public static final double FRAMERATE = 60.0D;
+public static final int MAXIMUM_UPDATES_PER_FRAME = 5;
+public static final float MAXIMUM_ACCUMULATED_TIME = 0.5F;
+
+// Application.java
+public static final int WIDTH = 1280;
+public static final int HEIGHT = 720;
+
+// Uso con duplicación
+final double ups = GameSettings.GAME_UPDATES_PER_SECOND
+  .get(GameTiming.FRAMERATE);  // ¡Default hardcoded!
+```
+
+**Después (v0.3.10)**: Valores centralizados en enumeraciones
+```java
+// GameSettings.java - Un solo lugar
+GAME_UPDATES_PER_SECOND("game.updates.per.second", Double.class, 60.0D),
+GAME_MAXIMUM_UPDATES_PER_FRAME("game.maximum.updates.per.frame", Integer.class, 5),
+GAME_MAXIMUM_ACCUMULATED_TIME("game.maximum.accumulated.time", Float.class, 0.5F),
+GAME_VERTICAL_SYNCHRONIZATION("game.vertical.synchronization", Boolean.class, true)
+
+// WindowSettings.java - Un solo lugar
+WINDOW_WIDTH("window.width", Integer.class, 1280),
+WINDOW_HEIGHT("window.height", Integer.class, 720),
+WINDOW_TITLE("window.title", String.class, "3D Game Engine")
+
+// Uso sin duplicación
+final double ups = GameSettings.GAME_UPDATES_PER_SECOND.get();  // ¡Simple!
+```
+
+##### Sistema de Tres Niveles de Fallback
+
+El nuevo sistema garantiza que **siempre hay un valor válido** disponible:
+
+```
+┌─────────────────────────────────────────────┐
+│  Nivel 1: Archivo properties                │
+│  ┌───────────────────────────────────────┐  │
+│  │ game.updates.per.second=120.0         │  │ ← PRIORIDAD MÁXIMA
+│  │ (Si existe y es válido, se usa este)  │  │
+│  └───────────────────────────────────────┘  │
+└─────────────────────────────────────────────┘
+              ↓ (si no existe)
+┌─────────────────────────────────────────────┐
+│  Nivel 2: Parámetro en get()                │
+│  ┌───────────────────────────────────────┐  │
+│  │ .get(30.0)                            │  │ ← PRIORIDAD MEDIA
+│  │ (Si se pasa, se usa como fallback)    │  │
+│  └───────────────────────────────────────┘  │
+└─────────────────────────────────────────────┘
+              ↓ (si es null)
+┌─────────────────────────────────────────────┐
+│  Nivel 3: Default en Enumeración            │
+│  ┌───────────────────────────────────────┐  │
+│  │ GAME_UPDATES_PER_SECOND(..., 60.0D)  │  │ ← SIEMPRE DISPONIBLE
+│  │ (Garantiza valor válido)              │  │
+│  └───────────────────────────────────────┘  │
+└─────────────────────────────────────────────┘
+```
+
+##### Implementación del Sistema
+
+**Enumeración con valores por defecto**:
+```java
+public enum GameSettings {
+  GAME_UPDATES_PER_SECOND(
+    "game.updates.per.second",  // Property key
+    Double.class,                // Type
+    60.0D                        // ← Built-in default (Nivel 3)
+  ),
+  // ... más configuraciones
+  
+  private final String property;
+  private final Class<?> classType;
+  private final Object defaultValue;  // ← Nuevo campo
+  
+  GameSettings(String _property, Class<?> _classType, Object _defaultValue) {
+    this.property = _property;
+    this.classType = _classType;
+    this.defaultValue = _defaultValue;
+  }
+}
+```
+
+**Método get() sin parámetros** (Nivel 1 → Nivel 3):
+```java
+public <T> T get() {
+  return (T) Configuration.get()
+    .property(
+      this.property,
+      (Class<T>) this.classType,
+      (T) this.defaultValue  // Usa default de enum si no hay en properties
+    );
+}
+```
+
+**Método get(T) con parámetro** (Nivel 1 → Nivel 2 → Nivel 3):
+```java
+public <T> T get(final T _defaultValue) {
+  /* Establish which default value to use. */
+  T propertyValue = (T) this.defaultValue;  // Nivel 3: Enum default
+  if (_defaultValue != null) {
+    propertyValue = _defaultValue;           // Nivel 2: Parámetro
+  }
+  
+  return (T) Configuration.get()
+    .property(
+      this.property,
+      (Class<T>) this.classType,
+      propertyValue                          // Nivel 1: Properties file
+    );
+}
+```
+
+##### Ejemplos de Uso
+
+**Ejemplo 1: Sin properties, sin parámetro** → Usa default de enum
+```java
+// application.properties está vacío o no existe
+
+double ups = GameSettings.GAME_UPDATES_PER_SECOND.get();
+// Resultado: 60.0 (default de la enumeración)
+```
+
+**Ejemplo 2: Con properties** → Usa properties file
+```java
+// application.properties:
+// game.updates.per.second=120.0
+
+double ups = GameSettings.GAME_UPDATES_PER_SECOND.get();
+// Resultado: 120.0 (valor del archivo)
+```
+
+**Ejemplo 3: Sin properties, con parámetro** → Usa parámetro
+```java
+// application.properties está vacío
+
+double ups = GameSettings.GAME_UPDATES_PER_SECOND.get(30.0D);
+// Resultado: 30.0 (parámetro pasado)
+```
+
+**Ejemplo 4: Con properties y parámetro** → Properties gana
+```java
+// application.properties:
+// game.updates.per.second=120.0
+
+double ups = GameSettings.GAME_UPDATES_PER_SECOND.get(30.0D);
+// Resultado: 120.0 (properties tiene prioridad sobre parámetro)
+```
+
+**Ejemplo 5: Parámetro null** → Usa default de enum
+```java
+double ups = GameSettings.GAME_UPDATES_PER_SECOND.get(null);
+// Resultado: 60.0 (null es ignorado, usa enum default)
+```
+
+##### Valores por Defecto Integrados
+
+**GameSettings**:
+| Configuración | Valor por Defecto | Descripción |
+|---------------|-------------------|-------------|
+| `GAME_VERTICAL_SYNCHRONIZATION` | `true` | VSync activado |
+| `GAME_UPDATES_PER_SECOND` | `60.0D` | 60 updates/segundo |
+| `GAME_MAXIMUM_UPDATES_PER_FRAME` | `5` | Máximo 5 updates/frame |
+| `GAME_MAXIMUM_ACCUMULATED_TIME` | `0.5F` | 500ms antes de reset |
+
+**WindowSettings**:
+| Configuración | Valor por Defecto | Descripción |
+|---------------|-------------------|-------------|
+| `WINDOW_WIDTH` | `1280` | Ancho en píxeles |
+| `WINDOW_HEIGHT` | `720` | Alto en píxeles |
+| `WINDOW_TITLE` | `"3D Game Engine"` | Título de ventana |
+
+##### Ventajas sobre v0.3.9
+
+✅ **Cero duplicación**: Valores por defecto en un solo lugar  
+✅ **Robustez máxima**: Sistema de tres niveles garantiza valor válido  
+✅ **Flexibilidad total**: Override posible en properties, código o enum  
+✅ **Testing mejorado**: Fácil inyectar valores personalizados  
+✅ **Mantenibilidad**: Cambiar default solo requiere editar enum  
+✅ **Código más limpio**: No más constantes dispersas  
+✅ **DRY completo**: Adherencia perfecta al principio Don't Repeat Yourself  
+
+##### Código Simplificado
+
+**GameTiming.java** - Eliminadas constantes públicas:
+```java
+// ANTES (v0.3.9)
+public static final double FRAMERATE = 60.0D;
+public static final int MAXIMUM_UPDATES_PER_FRAME = 5;
+public static final float MAXIMUM_ACCUMULATED_TIME = 0.5F;
+
+public void init() {
+  final double ups = GameSettings.GAME_UPDATES_PER_SECOND
+    .get(GameTiming.FRAMERATE);  // Duplicación
+}
+
+// DESPUÉS (v0.3.10)
+public void init() {
+  final double ups = GameSettings.GAME_UPDATES_PER_SECOND.get();
+  // ¡Sin constantes, sin duplicación!
+}
+```
+
+**Application.java** - Eliminadas constantes públicas:
+```java
+// ANTES (v0.3.9)
+public static final int WIDTH = 1280;
+public static final int HEIGHT = 720;
+
+Window.get().init(
+  WindowSettings.WINDOW_WIDTH.get(Application.WIDTH),   // Duplicación
+  WindowSettings.WINDOW_HEIGHT.get(Application.HEIGHT), // Duplicación
+  WindowSettings.WINDOW_TITLE.get()
+);
+
+// DESPUÉS (v0.3.10)
+Window.get().init(
+  WindowSettings.WINDOW_WIDTH.get(),   // ¡Simple y limpio!
+  WindowSettings.WINDOW_HEIGHT.get(),
+  WindowSettings.WINDOW_TITLE.get()
+);
+```
+
+##### Comparación de Arquitectura
+
+| Aspecto | v0.3.9 | v0.3.10 |
+|---------|---------|---------|
+| **Constantes duplicadas** | Sí (GameTiming, Application) | No (solo en enums) |
+| **Niveles de fallback** | 2 (properties → parámetro) | 3 (properties → parámetro → enum) |
+| **Valores por defecto** | Hardcoded en constantes | Integrados en enumeraciones |
+| **Líneas de código** | +15 líneas (constantes) | 0 líneas extra |
+| **Principio DRY** | Violado | Respetado |
+| **Mantenibilidad** | Media (múltiples lugares) | Alta (un solo lugar) |
+| **Robustez** | Buena | Excelente |
+
+##### Configuración
+
+Archivo `application.properties` (opcional):
+```properties
+# Game loop configuration
+game.updates.per.second=60.0
+game.maximum.updates.per.frame=5
+game.maximum.accumulated.time=0.5
+game.vertical.synchronization=true
+
+# Window configuration
+window.width=1280
+window.height=720
+window.title=3D Game Engine Tutorial
+```
+
+Si el archivo no existe o alguna propiedad falta, el sistema **automáticamente usa los valores por defecto de las enumeraciones**.
+
+> **Nota**: Esta versión mantiene toda la robustez de v0.3.9 (separación de responsabilidades, GameTiming, callbacks) pero elimina completamente la duplicación de código y centraliza la configuración. Ideal para proyectos que valoran código limpio, mantenible y sin repeticiones.
+
+#### v0.3.9 - Separación de Responsabilidades con GameTiming
 
 La versión 0.3.9 representa una **refactorización arquitectónica mayor** que extrae toda la lógica del game loop de `Application` a una nueva clase `GameTiming`:
 

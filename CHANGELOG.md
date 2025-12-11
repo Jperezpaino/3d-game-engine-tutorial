@@ -5,6 +5,163 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.10][0.3.10] - 2025-12-11
+
+### Añadido
+
+- **Sistema de configuración de tres niveles** en `GameSettings` y `WindowSettings`
+  - Valores por defecto integrados en las enumeraciones
+  - Fallback automático en tres niveles:
+    1. Valor cargado del archivo properties (si existe y es válido)
+    2. Valor pasado como parámetro al método `get(_defaultValue)`
+    3. Valor por defecto definido en la enumeración (siempre disponible)
+- **Valores por defecto en `GameSettings`**:
+  - `GAME_VERTICAL_SYNCHRONIZATION`: `true`
+  - `GAME_UPDATES_PER_SECOND`: `60.0D`
+  - `GAME_MAXIMUM_UPDATES_PER_FRAME`: `5`
+  - `GAME_MAXIMUM_ACCUMULATED_TIME`: `0.5F`
+- **Valores por defecto en `WindowSettings`**:
+  - `WINDOW_WIDTH`: `1280`
+  - `WINDOW_HEIGHT`: `720`
+  - `WINDOW_TITLE`: `"3D Game Engine"`
+
+### Cambiado
+
+- **`GameSettings` y `WindowSettings` refactorizados**
+  - Constructor ahora requiere tres parámetros: property, classType, defaultValue
+  - Método `get()` usa automáticamente el valor por defecto de la enumeración
+  - Método `get(T _defaultValue)` implementa lógica de tres niveles de fallback
+  - Variable local `propertyValue` para determinar el default a usar
+- **`GameTiming` simplificado**
+  - Eliminadas constantes públicas: `FRAMERATE`, `MAXIMUM_UPDATES_PER_FRAME`, `MAXIMUM_ACCUMULATED_TIME`
+  - Método `init()` llama a `GameSettings.get()` sin parámetros
+  - Depende completamente del sistema de configuración
+- **`Application` simplificado**
+  - Eliminadas constantes `WIDTH` y `HEIGHT`
+  - Llamadas a `WindowSettings.get()` sin parámetros
+  - Usa valores por defecto de las enumeraciones
+- Versión actualizada de 0.3.9 a 0.3.10
+
+### Eliminado
+
+- **Constantes duplicadas en `GameTiming`**
+  - `FRAMERATE` (ahora en `GameSettings.GAME_UPDATES_PER_SECOND`)
+  - `MAXIMUM_UPDATES_PER_FRAME` (ahora en `GameSettings.GAME_MAXIMUM_UPDATES_PER_FRAME`)
+  - `MAXIMUM_ACCUMULATED_TIME` (ahora en `GameSettings.GAME_MAXIMUM_ACCUMULATED_TIME`)
+- **Constantes duplicadas en `Application`**
+  - `WIDTH` (ahora en `WindowSettings.WINDOW_WIDTH`)
+  - `HEIGHT` (ahora en `WindowSettings.WINDOW_HEIGHT`)
+
+### Mejorado
+
+- **Reducción de duplicación de código**
+  - Un solo lugar para definir valores por defecto (enumeraciones)
+  - No más constantes dispersas en diferentes clases
+  - Mejor adherencia al principio DRY (Don't Repeat Yourself)
+- **Configuración más robusta**
+  - Sistema de fallback garantiza que siempre hay un valor válido
+  - Flexibilidad para override en tres niveles diferentes
+  - Más fácil testear con valores personalizados
+- **Mantenibilidad**
+  - Cambiar valores por defecto solo requiere modificar las enumeraciones
+  - Menos lugares donde buscar configuraciones
+  - Código más limpio y centralizado
+
+### Notas Técnicas
+
+- **Filosofía de la v0.3.10**: Configuración centralizada con fallback robusto
+  - Las enumeraciones son la fuente única de verdad para defaults
+  - Sistema de tres niveles proporciona máxima flexibilidad
+  - Eliminación total de constantes duplicadas
+- **Orden de prioridad del sistema de fallback**:
+  1. **Properties file**: Si existe y es válido, se usa este valor
+  2. **Parámetro**: Si no hay en properties y se pasa parámetro no-null, se usa
+  3. **Enum default**: Si no hay en properties ni parámetro, se usa el default de la enum
+- **Ventajas del diseño**:
+  - Configuración: Valores centralizados en un solo lugar
+  - Flexibilidad: Override posible en código si es necesario
+  - Robustez: Siempre hay un valor válido disponible
+  - Testing: Fácil inyectar valores personalizados
+  - Mantenibilidad: Un solo lugar para actualizar defaults
+
+### Ejemplo de Uso
+
+**Antes (v0.3.9) - Constantes dispersas**:
+```java
+// GameTiming.java
+public static final double FRAMERATE = 60.0D;
+public static final int MAXIMUM_UPDATES_PER_FRAME = 5;
+public static final float MAXIMUM_ACCUMULATED_TIME = 0.5F;
+
+// Application.java
+public static final int WIDTH = 1280;
+public static final int HEIGHT = 720;
+
+// Uso con defaults hardcoded
+final double ups = GameSettings.GAME_UPDATES_PER_SECOND
+  .get(GameTiming.FRAMERATE);
+Window.get().init(
+  WindowSettings.WINDOW_WIDTH.get(Application.WIDTH),
+  WindowSettings.WINDOW_HEIGHT.get(Application.HEIGHT),
+  WindowSettings.WINDOW_TITLE.get()
+);
+```
+
+**Después (v0.3.10) - Configuración centralizada**:
+```java
+// GameSettings.java - Un solo lugar para defaults
+GAME_UPDATES_PER_SECOND("game.updates.per.second", Double.class, 60.0D),
+GAME_MAXIMUM_UPDATES_PER_FRAME("game.maximum.updates.per.frame", Integer.class, 5),
+GAME_MAXIMUM_ACCUMULATED_TIME("game.maximum.accumulated.time", Float.class, 0.5F)
+
+// WindowSettings.java - Un solo lugar para defaults
+WINDOW_WIDTH("window.width", Integer.class, 1280),
+WINDOW_HEIGHT("window.height", Integer.class, 720),
+WINDOW_TITLE("window.title", String.class, "3D Game Engine")
+
+// Uso sin constantes duplicadas
+final double ups = GameSettings.GAME_UPDATES_PER_SECOND.get();
+Window.get().init(
+  WindowSettings.WINDOW_WIDTH.get(),
+  WindowSettings.WINDOW_HEIGHT.get(),
+  WindowSettings.WINDOW_TITLE.get()
+);
+```
+
+**Sistema de tres niveles en acción**:
+```java
+// Nivel 1: Usa valor de properties (si existe)
+// Nivel 2: Usa valor pasado (si no hay en properties)
+// Nivel 3: Usa default de enum (si no hay ni properties ni parámetro)
+
+// Sin parámetro - usa properties o enum default (60.0)
+double ups = GameSettings.GAME_UPDATES_PER_SECOND.get();
+
+// Con parámetro - usa properties, o parámetro (30.0), o enum default
+double ups = GameSettings.GAME_UPDATES_PER_SECOND.get(30.0D);
+
+// Con null - usa properties o enum default (ignora null)
+double ups = GameSettings.GAME_UPDATES_PER_SECOND.get(null);
+```
+
+**Implementación del método get()**:
+```java
+public <T> T get(final T _defaultValue) {
+  /* Establish which default value to use. */
+  T propertyValue = (T) this.defaultValue;  // Nivel 3: Enum default
+  if (_defaultValue != null) {
+    propertyValue = _defaultValue;           // Nivel 2: Parámetro
+  }
+  
+  return (T) Configuration.get()
+    .property(
+      this.property,
+      (Class<T>) this.classType,
+      propertyValue                          // Nivel 1: Properties (inside)
+    );
+}
+```
+
 ## [0.3.9][0.3.9] - 2025-12-11
 
 ### Añadido
