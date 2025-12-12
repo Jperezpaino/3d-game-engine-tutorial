@@ -133,6 +133,10 @@ import es.noa.rad.game.engine.event.MouseEventHandler;
         this.glfwWindow,
         MouseEventHandler.get().getGlfwCursorPosCallback()
       );
+      GLFW.glfwSetScrollCallback(
+        this.glfwWindow,
+        MouseEventHandler.get().getGlfwScrollCallback()
+      );
       GLFW.glfwSetMouseButtonCallback(
         this.glfwWindow,
         MouseEventHandler.get().getGlfwMouseButtonCallback()
@@ -177,9 +181,11 @@ import es.noa.rad.game.engine.event.MouseEventHandler;
       if (MouseEventHandler.get()
         .isMouseButtonPressed(GLFW.GLFW_MOUSE_BUTTON_LEFT)) {
         System.out.printf(
-          "(x: %.0f, y: %.0f)%n",
+          "(x: %.0f, y: %.0f, Scroll x: %.0f, Scroll y: %.0f)%n",
           MouseEventHandler.get().getCursorPositionX(),
-          MouseEventHandler.get().getCursorPositionY()
+          MouseEventHandler.get().getCursorPositionY(),
+          MouseEventHandler.get().getCursorScrollX(),
+          MouseEventHandler.get().getCursorScrollY()
         );
       }
     }

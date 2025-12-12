@@ -3,9 +3,10 @@ package es.noa.rad.game.engine.event;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.glfw.GLFWCursorPosCallback;
 import org.lwjgl.glfw.GLFWMouseButtonCallback;
-
+import org.lwjgl.glfw.GLFWScrollCallback;
 import es.noa.rad.game.engine.event.callback.CursorPosCallback;
 import es.noa.rad.game.engine.event.callback.MouseButtonCallback;
+import es.noa.rad.game.engine.event.callback.ScrollCallback;
 
   /**
    *
@@ -25,6 +26,11 @@ import es.noa.rad.game.engine.event.callback.MouseButtonCallback;
     /**
      *
      */
+    private final GLFWScrollCallback glfwScrollCallback;
+
+    /**
+     *
+     */
     private final GLFWMouseButtonCallback glfwMouseButtonCallback;
 
     /**
@@ -40,6 +46,16 @@ import es.noa.rad.game.engine.event.callback.MouseButtonCallback;
     /**
      *
      */
+    private double cursorScrollX;
+
+    /**
+     *
+     */
+    private double cursorScrollY;
+
+    /**
+     *
+     */
     private final boolean[] mouseButtonPressed;
 
     /**
@@ -48,8 +64,11 @@ import es.noa.rad.game.engine.event.callback.MouseButtonCallback;
     private MouseEventHandler() {
       this.cursorPositionX = 0.0d;
       this.cursorPositionY = 0.0d;
+      this.cursorScrollX = 0.0d;
+      this.cursorScrollY = 0.0d;
       this.mouseButtonPressed = new boolean[GLFW.GLFW_MOUSE_BUTTON_LAST];
       this.glfwCursorPosCallback = new CursorPosCallback();
+      this.glfwScrollCallback = new ScrollCallback();
       this.glfwMouseButtonCallback = new MouseButtonCallback();
     }
 
@@ -82,6 +101,7 @@ import es.noa.rad.game.engine.event.callback.MouseButtonCallback;
      */
     public void close() {
       this.glfwCursorPosCallback.free();
+      this.glfwScrollCallback.free();
       this.glfwMouseButtonCallback.free();
     }
 
@@ -91,6 +111,14 @@ import es.noa.rad.game.engine.event.callback.MouseButtonCallback;
      */
     public GLFWCursorPosCallback getGlfwCursorPosCallback() {
       return this.glfwCursorPosCallback;
+    }
+
+    /**
+     *
+     * @return {@code GLFWScrollCallback}
+     */
+    public GLFWScrollCallback getGlfwScrollCallback() {
+      return this.glfwScrollCallback;
     }
 
     /**
@@ -133,6 +161,58 @@ import es.noa.rad.game.engine.event.callback.MouseButtonCallback;
     public void setCursorPositionY(
         final double _cursorPositionY) {
       this.cursorPositionY = _cursorPositionY;
+    }
+
+    /**
+     *
+     * @return {@code double}
+     */
+    public double getCursorScrollX() {
+      return this.cursorScrollX;
+    }
+
+    /**
+     *
+     * @param _cursorScrollX {@code double}
+     */
+    public void setCursorScrollX(
+        final double _cursorScrollX) {
+      this.cursorScrollX = _cursorScrollX;
+    }
+
+    /**
+     *
+     * @param _cursorScrollX {@code double}
+     */
+    public void addCursorScrollX(
+        final double _cursorScrollX) {
+      this.cursorScrollX += _cursorScrollX;
+    }
+
+    /**
+     *
+     * @return {@code double}
+     */
+    public double getCursorScrollY() {
+      return this.cursorScrollY;
+    }
+
+    /**
+     *
+     * @param _cursorScrollY {@code double}
+     */
+    public void setCursorScrollY(
+        final double _cursorScrollY) {
+      this.cursorScrollY = _cursorScrollY;
+    }
+
+    /**
+     *
+     * @param _cursorScrollY {@code double}
+     */
+    public void addCursorScrollY(
+        final double _cursorScrollY) {
+      this.cursorScrollY += _cursorScrollY;
     }
 
     /**
