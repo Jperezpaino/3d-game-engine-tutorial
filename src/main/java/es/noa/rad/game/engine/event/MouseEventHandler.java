@@ -1,8 +1,9 @@
 package es.noa.rad.game.engine.event;
 
 import org.lwjgl.glfw.GLFW;
+import org.lwjgl.glfw.GLFWCursorPosCallback;
 import org.lwjgl.glfw.GLFWMouseButtonCallback;
-
+import es.noa.rad.game.engine.event.callback.CursorPosCallback;
 import es.noa.rad.game.engine.event.callback.MouseButtonCallback;
 
   /**
@@ -18,7 +19,22 @@ import es.noa.rad.game.engine.event.callback.MouseButtonCallback;
     /**
      *
      */
+    private final GLFWCursorPosCallback glfwCursorPosCallback;
+
+    /**
+     *
+     */
     private final GLFWMouseButtonCallback glfwMouseButtonCallback;
+
+    /**
+     *
+     */
+    private double cursorPositionX;
+
+    /**
+     *
+     */
+    private double cursorPositionY;
 
     /**
      *
@@ -29,7 +45,10 @@ import es.noa.rad.game.engine.event.callback.MouseButtonCallback;
      *
      */
     private MouseEventHandler() {
+      this.cursorPositionX = 0.0d;
+      this.cursorPositionY = 0.0d;
       this.mouseButtonPressed = new boolean[GLFW.GLFW_MOUSE_BUTTON_LAST];
+      this.glfwCursorPosCallback = new CursorPosCallback();
       this.glfwMouseButtonCallback = new MouseButtonCallback();
     }
 
@@ -61,7 +80,16 @@ import es.noa.rad.game.engine.event.callback.MouseButtonCallback;
      *
      */
     public void close() {
+      this.glfwCursorPosCallback.free();
       this.glfwMouseButtonCallback.free();
+    }
+
+    /**
+     *
+     * @return {@code GLFWCursorPosCallback}
+     */
+    public GLFWCursorPosCallback getGlfwCursorPosCallback() {
+      return this.glfwCursorPosCallback;
     }
 
     /**
@@ -70,6 +98,40 @@ import es.noa.rad.game.engine.event.callback.MouseButtonCallback;
      */
     public GLFWMouseButtonCallback getGlfwMouseButtonCallback() {
       return this.glfwMouseButtonCallback;
+    }
+
+    /**
+     *
+     * @return {@code double}
+     */
+    public double getCursorPositionX() {
+      return this.cursorPositionX;
+    }
+
+    /**
+     *
+     * @param _cursorPositionX {@code double}
+     */
+    public void setCursorPositionX(
+        final double _cursorPositionX) {
+      this.cursorPositionX = _cursorPositionX;
+    }
+
+    /**
+     *
+     * @return {@code double}
+     */
+    public double getCursorPositionY() {
+      return this.cursorPositionY;
+    }
+
+    /**
+     *
+     * @param _cursorPositionY {@code double}
+     */
+    public void setCursorPositionY(
+        final double _cursorPositionY) {
+      this.cursorPositionY = _cursorPositionY;
     }
 
     /**
