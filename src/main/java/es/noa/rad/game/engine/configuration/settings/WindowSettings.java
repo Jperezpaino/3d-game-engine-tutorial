@@ -3,14 +3,29 @@ package es.noa.rad.game.engine.configuration.settings;
 import es.noa.rad.game.engine.configuration.Configuration;
 
   /**
+   * Enumeration of window-related configuration settings.
    *
+   * <p>This enum provides type-safe access to window configuration
+   * properties from {@code application.properties}. Each constant
+   * includes its property key, expected type, and default value.
+   *
+   * <p>Usage example:
+   * <pre>{@code
+   * int width = WindowSettings.WINDOW_WIDTH.get();
+   * String title = WindowSettings.WINDOW_TITLE.get("My Game");
+   * }</pre>
+   *
+   * @see Configuration
+   * @see GameSettings
    */
   public enum WindowSettings {
 
     /**
      * Window width in pixels.
      *
-     * Default: {@code 1280}
+     * <p>Property key: {@code window.width}
+     * <p>Type: {@code Integer}
+     * <p>Default: {@code 1280}
      */
     WINDOW_WIDTH(
       "window.width",
@@ -21,7 +36,9 @@ import es.noa.rad.game.engine.configuration.Configuration;
     /**
      * Window height in pixels.
      *
-     * Default: {@code 720}
+     * <p>Property key: {@code window.height}
+     * <p>Type: {@code Integer}
+     * <p>Default: {@code 720}
      */
     WINDOW_HEIGHT(
       "window.height",
@@ -30,9 +47,11 @@ import es.noa.rad.game.engine.configuration.Configuration;
     ),
 
     /**
-     * Window title text.
+     * Window title text displayed in the title bar.
      *
-     * Default: {@code "3D Game Engine"}
+     * <p>Property key: {@code window.title}
+     * <p>Type: {@code String}
+     * <p>Default: {@code "3D Game Engine"}
      */
     WINDOW_TITLE(
       "window.title",
@@ -41,25 +60,26 @@ import es.noa.rad.game.engine.configuration.Configuration;
     );
 
     /**
-     *
+     * Property key in application.properties file.
      */
     private final String property;
 
     /**
-     *
+     * Java class type for automatic conversion.
      */
     private final Class<?> classType;
 
     /**
-     *
+     * Default value if property is not found in configuration.
      */
     private final Object defaultValue;
 
     /**
+     * Private constructor for enum constants.
      *
-     * @param _property {@code String}
-     * @param _classType {@code Class<T>}
-     * @param _defaultValue {@code Object}
+     * @param _property the property key
+     * @param _classType the expected type
+     * @param _defaultValue the fallback value
      */
     WindowSettings(
         final String _property,
@@ -71,9 +91,13 @@ import es.noa.rad.game.engine.configuration.Configuration;
     }
 
     /**
+     * Gets the property value from configuration with enum default.
      *
-     * @param <T> {@code <T>}
-     * @return {@code <T>}
+     * <p>Returns the value from {@code application.properties},
+     * or the default value defined in this enum if not found.
+     *
+     * @param <T> the type of the property value
+     * @return the property value converted to the expected type
      */
     @SuppressWarnings("unchecked")
     public <T> T get() {
@@ -86,10 +110,14 @@ import es.noa.rad.game.engine.configuration.Configuration;
     }
 
     /**
+     * Gets the property value with a custom default.
      *
-     * @param <T> {@code <T>}
-     * @param _defaultValue {@code <T>}
-     * @return {@code <T>}
+     * <p>Allows overriding the enum's default value with a custom one.
+     * Useful for runtime-specific defaults.
+     *
+     * @param <T> the type of the property value
+     * @param _defaultValue custom default to use if property not found
+     * @return the property value or custom default
      */
     @SuppressWarnings("unchecked")
     public <T> T get(

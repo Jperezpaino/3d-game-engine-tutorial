@@ -7,38 +7,69 @@ import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 
   /**
+   * Singleton configuration manager for loading and accessing properties.
    *
+   * <p>This class provides centralized access to application configuration
+   * from the {@code application.properties} file. Features:
+   * <ul>
+   *   <li>Type-safe property retrieval with automatic conversion</li>
+   *   <li>Thread-safe caching for performance</li>
+   *   <li>Default value support</li>
+   *   <li>Support for all primitive types and String</li>
+   * </ul>
+   *
+   * <p>Thread-safe singleton with lazy initialization and concurrent cache.
+   *
+   * <p>Usage example:
+   * <pre>{@code
+   * Configuration.get().init();
+   * int width = Configuration.get().property(
+   *     "window.width",
+   *     Integer.class
+   * );
+   * String title = Configuration.get().property(
+   *     "window.title",
+   *     String.class,
+   *     "Default Title"
+   * );
+   * }</pre>
+   *
+   * @see WindowSettings
+   * @see GameSettings
    */
   public final class Configuration {
 
     /**
-     *
+     * Path to the application properties file in classpath.
      */
     private static final String CONFIG_PATH =
       "es/noa/rad/game/settings/application.properties";
 
     /**
-     *
+     * Singleton instance of the configuration manager.
      */
     private static Configuration instance = null;
 
     /**
-     *
+     * Flag indicating if configuration has been loaded.
+     * Must be true before accessing properties.
      */
     private boolean initialized;
 
     /**
-     *
+     * Properties loaded from the configuration file.
      */
     private final Properties properties;
 
     /**
-     *
+     * Thread-safe cache for parsed property values.
+     * Key format: "property.name:ClassName"
      */
     private final Map<String, Object> propertiesCache;
 
     /**
-     *
+     * Private constructor to enforce singleton pattern.
+     * Initializes properties and cache structures.
      */
     private Configuration() {
       this.initialized = false;
@@ -47,7 +78,9 @@ import java.util.concurrent.ConcurrentHashMap;
     }
 
     /**
-     *
+     * Creates the singleton instance in a thread-safe manner.
+     * Uses synchronized method to prevent multiple instances
+     * in multi-threaded environments.
      */
     private static synchronized void createInstance() {
       /*
@@ -60,8 +93,10 @@ import java.util.concurrent.ConcurrentHashMap;
     }
 
     /**
+     * Gets the singleton instance of the configuration manager.
+     * Creates the instance on first call (lazy initialization).
      *
-     * @return {@code Configuration}
+     * @return the singleton {@code Configuration} instance
      */
     public static Configuration get() {
       if (Configuration.instance == null) {
@@ -71,12 +106,20 @@ import java.util.concurrent.ConcurrentHashMap;
     }
 
     /**
+     * Loads the application properties file from classpath.
      *
-     * @throws RuntimeException
+     * <p>Reads properties from {@code application.properties} located at:
+     * {@code es/noa/rad/game/settings/application.properties}
+     *
+     * <p>This method must be called before accessing any properties.
+     *
+     * @throws RuntimeException if the properties file cannot be found,
+     *     read, or closed properly
      */
     public void init() {
       InputStream inputStream = null;
       try {
+        /* Load properties file from classpath. */
         inputStream = Configuration.class
           .getClassLoader().getResourceAsStream(Configuration.CONFIG_PATH);
         if (inputStream == null) {
@@ -108,8 +151,9 @@ import java.util.concurrent.ConcurrentHashMap;
     }
 
     /**
+     * Verifies that configuration has been initialized.
      *
-     * @throws IllegalStateException
+     * @throws IllegalStateException if {@link #init()} has not been called
      */
     private void initialized() {
       if (!this.initialized) {
@@ -120,9 +164,10 @@ import java.util.concurrent.ConcurrentHashMap;
     }
 
     /**
+     * Gets a raw property value as a String.
      *
-     * @param _property {@code String}
-     * @return {@code String}
+     * @param _property the property key
+     * @return the property value as String, or null if not found
      */
     private String property(
         final String _property) {
@@ -130,12 +175,29 @@ import java.util.concurrent.ConcurrentHashMap;
     }
 
     /**
+     * Gets a typed property value with automatic conversion and caching.
      *
-     * @param <T> {@code <T>}
-     * @param _property {@code String}
-     * @param _classType {@code Class<T>}
-     * @return {@code <T>}
-     * @throws IllegalArgumentException
+     * <p>Supports conversion to the following types:
+     * <ul>
+     *   <li>Byte, byte</li>
+     *   <li>Short, short</li>
+     *   <li>Integer, int</li>
+     *   <li>Long, long</li>
+     *   <li>Float, float</li>
+     *   <li>Double, double</li>
+     *   <li>Boolean, boolean</li>
+     *   <li>Character, char (first character of string)</li>
+     *   <li>String</li>
+     * </ul>
+     *
+     * <p>Values are cached after first retrieval for performance.
+     *
+     * @param <T> the type to convert the property to
+     * @param _property the property key
+     * @param _classType the class of the desired return type
+     * @return the property value converted to type T
+     * @throws IllegalStateException if configuration not initialized
+     * @throws IllegalArgumentException if property not found
      */
     @SuppressWarnings("unchecked")
     public <T> T property(
@@ -145,7 +207,7 @@ import java.util.concurrent.ConcurrentHashMap;
       /* Verified that the configuration is initialized. */
       this.initialized();
 
-      /* Check cache first. */
+      /* Check cache first for performance. */
       final String cacheKey = _property + ":" + _classType.getName();
       if (this.propertiesCache.containsKey(cacheKey)) {
         return (T) this.propertiesCache.get(cacheKey);
@@ -157,6 +219,7 @@ import java.util.concurrent.ConcurrentHashMap;
           "Property '" + _property + "' not found");
       }
 
+      /* Convert string property to requested type. */
       T value = null;
       if ((_classType == Byte.class)
        || (_classType == byte.class)) {
@@ -192,17 +255,24 @@ import java.util.concurrent.ConcurrentHashMap;
         value = (T) property;
       }
 
+      /* Cache the converted value for future requests. */
       this.propertiesCache.put(cacheKey, value);
       return value;
     }
 
     /**
+     * Gets a typed property value with a default fallback.
      *
-     * @param <T> {@code <T>}
-     * @param _property {@code String}
-     * @param _classType {@code Class<T>}
-     * @param _defaultValue {@code <T>}
-     * @return {@code <T>}
+     * <p>If the property is not found, returns the default value
+     * and caches it for future requests.
+     *
+     * <p>This is useful for optional configuration values.
+     *
+     * @param <T> the type to convert the property to
+     * @param _property the property key
+     * @param _classType the class of the desired return type
+     * @param _defaultValue the value to return if property not found
+     * @return the property value, or default value if not found
      */
     public <T> T property(
         final String _property,
