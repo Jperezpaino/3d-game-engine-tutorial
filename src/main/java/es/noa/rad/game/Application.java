@@ -100,7 +100,6 @@ import es.noa.rad.game.engine.core.Window;
 
       /*
        * Main game loop: runs until the user closes the window.
-       * VSync controls the frame rate automatically via swapBuffers().
        */
       while ((this.running)
           && (!Window.get().shouldClose())

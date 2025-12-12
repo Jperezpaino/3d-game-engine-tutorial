@@ -97,9 +97,30 @@ import es.noa.rad.game.engine.configuration.settings.GameSettings;
     private int fps;
 
     /**
-     *
+     * Time of the last FPS metrics reset (in milliseconds).
      */
     private long fpsTime;
+
+    /**
+     * Indicates whether vertical synchronization (VSync) is enabled.
+     * When true, frame rate is controlled by monitor refresh rate.
+     * When false, FPS cap is applied based on maxFramesPerSecond.
+     */
+    private boolean vSyncEnabled;
+
+    /**
+     * Maximum frames per second when VSync is disabled.
+     * Value of 0 means unlimited FPS (no cap applied).
+     * Common values: 60, 120, 144, 240.
+     */
+    private int maxFramesPerSecond;
+
+    /**
+     * Target time per frame in nanoseconds for FPS limiting.
+     * Calculated as NANOSECONDS_IN_SECOND / maxFramesPerSecond.
+     * Value of 0.0 means no FPS cap (VSync enabled or unlimited FPS).
+     */
+    private double renderTime;
 
     /**
      *
@@ -142,15 +163,49 @@ import es.noa.rad.game.engine.configuration.settings.GameSettings;
     }
 
     /**
+     * Initializes the game timing system with configuration values.
      *
+     * <p>This method loads all timing-related settings including:
+     * <ul>
+     *   <li>VSync status and FPS cap configuration</li>
+     *   <li>Updates per second (UPS) for fixed timestep</li>
+     *   <li>Spiral of death protection parameters</li>
+     * </ul>
+     *
+     * <p>FPS limiting behavior:
+     * <ul>
+     *   <li>If VSync is enabled: renderTime = 0 (no manual FPS cap)</li>
+     *   <li>If VSync is disabled and maxFramesPerSecond > 0:
+     *       renderTime calculated to limit FPS</li>
+     *   <li>If maxFramesPerSecond = 0: renderTime = 0 (unlimited FPS)</li>
+     * </ul>
+     *
+     * <p>Must be called before starting the game loop.
      */
     public void init() {
 
       /* Load configuration values once to avoid repeated lookups. */
 
+      /* VSync enabled status. */
+      this.vSyncEnabled
+        = GameSettings.GAME_VERTICAL_SYNCHRONIZATION.get();
+
+      /* Maximum FPS when VSync is disabled (0 = unlimited). */
+      this.maxFramesPerSecond
+        = GameSettings.GAME_MAXIMUM_FRAMES_PER_SECOND.get();
+
       /* Updates per second (e.g., 60.0 = 60 UPS). */
       final double updatesPerSecond
         = GameSettings.GAME_UPDATES_PER_SECOND.get();
+
+      /* Calculate render time in nanoseconds for FPS cap. */
+      if (!this.vSyncEnabled && this.maxFramesPerSecond > 0) {
+        this.renderTime
+          = ((double) (GameTiming.NANOSECONDS_IN_SECOND
+              / this.maxFramesPerSecond));
+      } else {
+        this.renderTime = 0.0D;  /* No cap needed (VSync or unlimited). */
+      }
 
       /* Maximum time accumulation in seconds (e.g., 0.5 = 500ms). */
       this.maxAccumulatedTime
@@ -176,14 +231,16 @@ import es.noa.rad.game.engine.configuration.settings.GameSettings;
     }
 
     /**
-     *
+     * Starts the game timing system.
+     * Sets the running flag to true, allowing tick() to process frames.
      */
     public void start() {
       this.running = true;
     }
 
     /**
-     *
+     * Stops the game timing system.
+     * Sets the running flag to false, causing tick() to return false.
      */
     public void stop() {
       this.running = false;
@@ -192,16 +249,30 @@ import es.noa.rad.game.engine.configuration.settings.GameSettings;
     /**
      * Processes one frame of the game loop.
      * Handles timing accumulation, spiral of death protection,
-     * fixed timestep updates, and rendering with interpolation.
+     * fixed timestep updates, rendering with interpolation, and FPS limiting.
      *
-     * This method performs a complete frame tick:
-     * 1. Accumulates elapsed time
-     * 2. Applies spiral of death protection if needed
-     * 3. Executes fixed timestep updates (up to maxUpdatesPerFrame)
-     * 4. Renders with interpolation alpha
-     * 5. Updates FPS/UPS metrics
+     * <p>This method performs a complete frame tick:
+     * <ol>
+     *   <li>Accumulates elapsed time</li>
+     *   <li>Applies spiral of death protection if needed</li>
+     *   <li>Processes input</li>
+     *   <li>Executes fixed timestep updates (up to maxUpdatesPerFrame)</li>
+     *   <li>Renders with interpolation alpha</li>
+     *   <li>Updates FPS/UPS metrics</li>
+     *   <li>Limits frame rate when VSync is disabled</li>
+     * </ol>
      *
-     * @return {@code boolean}
+     * <p>FPS limiting (step 7):
+     * <ul>
+     *   <li>Only active when renderTime > 0
+     *       (VSync disabled and FPS cap set)</li>
+     *   <li>Calculates elapsed time for render and update</li>
+     *   <li>Sleeps thread if frame completed faster than target</li>
+     *   <li>Ensures consistent frame rate without VSync</li>
+     * </ul>
+     *
+     * @return {@code true} if the game loop should continue,
+     *         {@code false} if it should stop
      */
     public boolean tick() {
       if (!this.running) {
@@ -272,6 +343,23 @@ import es.noa.rad.game.engine.configuration.settings.GameSettings;
        * allowing smooth visuals even with fixed physics timestep.
        */
       this.render((float) this.deltaTime);
+
+      /* FPS cap: Only when VSync is disabled and FPS limit is configured. */
+      if (this.renderTime > 0.0D) {
+        /* Calculate the time it took to generate the render and update. */
+        final long elapsedTime = System.nanoTime() - currentTime;
+
+        /* Calculate how long we have to wait. */
+        final long sleepTime = ((long) ((this.renderTime - elapsedTime)
+            / TimeUnit.MILLISECONDS.toNanos(1L)));
+        if (sleepTime > 0L) {
+          try {
+            Thread.sleep(sleepTime);
+          } catch (final InterruptedException interruptedException) {
+            Thread.currentThread().interrupt();
+          }
+        }
+      }
 
       return true;
     }

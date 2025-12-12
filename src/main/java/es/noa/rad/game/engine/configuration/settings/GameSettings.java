@@ -19,6 +19,19 @@ import es.noa.rad.game.engine.configuration.Configuration;
     ),
 
     /**
+     * Maximum frames per second when VSync is disabled.
+     * This value is ignored when VSync is enabled.
+     * Set to 0 for unlimited FPS (not recommended).
+     *
+     * Default: {@code 144}
+     */
+    GAME_MAXIMUM_FRAMES_PER_SECOND(
+      "game.maximum.frames.per.second",
+      Integer.class,
+      144
+    ),
+
+    /**
      * Target updates per second for the game loop (fixed timestep).
      *
      * Default: {@code 60.0}
