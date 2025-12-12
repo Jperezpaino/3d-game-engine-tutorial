@@ -3,6 +3,7 @@ package es.noa.rad.game.engine.event;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.glfw.GLFWCursorPosCallback;
 import org.lwjgl.glfw.GLFWMouseButtonCallback;
+
 import es.noa.rad.game.engine.event.callback.CursorPosCallback;
 import es.noa.rad.game.engine.event.callback.MouseButtonCallback;
 
