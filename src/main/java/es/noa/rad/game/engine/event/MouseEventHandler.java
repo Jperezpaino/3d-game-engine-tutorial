@@ -79,7 +79,8 @@ import es.noa.rad.game.engine.event.callback.MouseButtonCallback;
      */
     public boolean isMouseButtonPressed(
         final int _buttonCode) {
-      if (_buttonCode < GLFW.GLFW_MOUSE_BUTTON_LAST) {
+      if ((_buttonCode >= 0)
+       && (_buttonCode < GLFW.GLFW_MOUSE_BUTTON_LAST)) {
         return this.mouseButtonPressed[_buttonCode];
       }
       return false;
@@ -93,7 +94,8 @@ import es.noa.rad.game.engine.event.callback.MouseButtonCallback;
     public void setMouseButtonPressed(
         final int _buttonCode,
         final boolean _buttonStatus) {
-      if (_buttonCode < GLFW.GLFW_MOUSE_BUTTON_LAST) {
+      if ((_buttonCode >= 0)
+       && (_buttonCode < GLFW.GLFW_MOUSE_BUTTON_LAST)) {
         this.mouseButtonPressed[_buttonCode] = _buttonStatus;
       }
     }

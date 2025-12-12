@@ -876,7 +876,338 @@ Frames Per Second (FPS): 144  (Monitor 144Hz)
 
 > **Nota**: Esta versión combina Fixed Timestep (v0.3.4), VSync (v0.3.5), y Spiral of Death Protection (v0.3.4). Versión robusta ideal para proyectos que requieren física determinística, calidad visual perfecta, y funcionamiento en hardware variable.
 
-#### v0.4.0 - Sistema de Input de Teclado (Implementación Actual)
+#### v0.4.1 - Sistema de Input de Ratón (Implementación Actual)
+
+La versión 0.4.1 añade el **sistema de manejo de input de ratón**, complementando el sistema de teclado de v0.4.0. Incluye también un nuevo callback `inputCallback` en `GameTiming` para separar input de update/render:
+
+##### Nuevo Sistema de Input de Ratón
+
+**Componentes principales**:
+```
+MouseEventHandler (Singleton)
+├─> boolean[] mouseButtonPressed      // Estado de todos los botones
+├─> GLFWMouseButtonCallback callback  // Callback de GLFW
+├─> isMouseButtonPressed(buttonCode)  // Consultar estado
+└─> setMouseButtonPressed(code, bool) // Actualizar estado
+
+MouseButtonCallback (GLFWMouseButtonCallback)
+└─> invoke()                          // Procesa eventos de GLFW
+    └─> MouseEventHandler.setMouseButtonPressed()
+```
+
+##### Implementación
+
+**MouseEventHandler (Singleton)**:
+```java
+package es.noa.rad.game.engine.event;
+
+public final class MouseEventHandler {
+    
+    private static MouseEventHandler instance = null;
+    private final GLFWMouseButtonCallback glfwMouseButtonCallback;
+    private final boolean[] mouseButtonPressed;
+    
+    private MouseEventHandler() {
+        this.mouseButtonPressed = new boolean[GLFW.GLFW_MOUSE_BUTTON_LAST];
+        this.glfwMouseButtonCallback = new MouseButtonCallback();
+    }
+    
+    public static MouseEventHandler get() {
+        if (instance == null) {
+            createInstance();
+        }
+        return instance;
+    }
+    
+    /**
+     * Verifica si un botón del ratón está presionado.
+     * 
+     * @param _buttonCode Código de botón GLFW (ej: GLFW_MOUSE_BUTTON_LEFT)
+     * @return true si está presionado, false en caso contrario
+     */
+    public boolean isMouseButtonPressed(final int _buttonCode) {
+        if ((_buttonCode >= 0) && (_buttonCode < GLFW.GLFW_MOUSE_BUTTON_LAST)) {
+            return this.mouseButtonPressed[_buttonCode];
+        }
+        return false;
+    }
+    
+    /**
+     * Actualiza el estado de un botón del ratón.
+     * Llamado internamente por MouseButtonCallback.
+     */
+    public void setMouseButtonPressed(final int _buttonCode, final boolean _buttonStatus) {
+        if ((_buttonCode >= 0) && (_buttonCode < GLFW.GLFW_MOUSE_BUTTON_LAST)) {
+            this.mouseButtonPressed[_buttonCode] = _buttonStatus;
+        }
+    }
+    
+    public GLFWMouseButtonCallback getGlfwMouseButtonCallback() {
+        return this.glfwMouseButtonCallback;
+    }
+    
+    public void close() {
+        this.glfwMouseButtonCallback.free();
+    }
+}
+```
+
+**MouseButtonCallback (Procesa eventos de GLFW)**:
+```java
+package es.noa.rad.game.engine.event.callback;
+
+public final class MouseButtonCallback extends GLFWMouseButtonCallback {
+    
+    @Override
+    public void invoke(
+        final long _window,
+        final int _button,
+        final int _action,
+        final int _modifier) {
+        
+        // Actualizar estado: presionado si action != RELEASE
+        MouseEventHandler.get()
+            .setMouseButtonPressed(_button, (_action != GLFW.GLFW_RELEASE));
+    }
+}
+```
+
+**Integración en Window.init()**:
+```java
+// Registrar callback de botones del ratón en GLFW
+GLFW.glfwSetMouseButtonCallback(
+    this.glfwWindow,
+    MouseEventHandler.get().getGlfwMouseButtonCallback()
+);
+```
+
+**Cleanup en Window.close()**:
+```java
+// Liberar recursos de callbacks
+KeyboardEventHandler.get().close();
+MouseEventHandler.get().close();
+GLFW.glfwDestroyWindow(this.glfwWindow);
+GLFW.glfwTerminate();
+```
+
+##### Nuevo Callback de Input en GameTiming
+
+**inputCallback con Runnable**:
+```java
+// En GameTiming.java
+private Runnable inputCallback;
+
+public void inputCallback(final Runnable _inputCallback) {
+    this.inputCallback = _inputCallback;
+}
+
+private void input() {
+    if (this.inputCallback != null) {
+        this.inputCallback.run();
+    } else {
+        Window.get().input();  // Fallback
+    }
+}
+```
+
+**Configuración en Application.init()**:
+```java
+// Configurar callback de input (más idiomático con Runnable)
+GameTiming.get().inputCallback(() -> Window.get().input());
+```
+
+**Método Window.input() centralizado**:
+```java
+public void input() {
+    // Cerrar con ESC
+    if (KeyboardEventHandler.get().isKeyPressed(GLFW.GLFW_KEY_ESCAPE)) {
+        GLFW.glfwSetWindowShouldClose(this.glfwWindow, true);
+    }
+    
+    // Detectar clic izquierdo
+    if (MouseEventHandler.get().isMouseButtonPressed(GLFW.GLFW_MOUSE_BUTTON_LEFT)) {
+        System.out.printf("Mouse Button Left Pressed.%n");
+    }
+}
+```
+
+##### Flujo del Game Loop con Input
+
+```
+┌─────────────────────────────────────────────┐
+│  GameTiming.tick()                          │
+│  ┌───────────────────────────────────────┐  │
+│  │ 1. input()      ← NUEVO: inputCallback│  │
+│  │    └─> Window.input()                 │  │
+│  │         ├─> Keyboard.isKeyPressed()   │  │
+│  │         └─> Mouse.isMouseButtonPressed│  │
+│  │                                        │  │
+│  │ 2. while (deltaTime >= 1.0)           │  │
+│  │      update(fixedDeltaTime)           │  │
+│  │      deltaTime--                       │  │
+│  │                                        │  │
+│  │ 3. render(alpha)                      │  │
+│  └───────────────────────────────────────┘  │
+└─────────────────────────────────────────────┘
+```
+
+##### Ejemplos de Uso
+
+**Ejemplo 1: Detección de botones del ratón**:
+```java
+public void input() {
+    // Botón izquierdo - Acción primaria
+    if (MouseEventHandler.get().isMouseButtonPressed(GLFW.GLFW_MOUSE_BUTTON_LEFT)) {
+        player.shoot();
+        // o
+        ui.selectObject();
+    }
+    
+    // Botón derecho - Acción secundaria
+    if (MouseEventHandler.get().isMouseButtonPressed(GLFW.GLFW_MOUSE_BUTTON_RIGHT)) {
+        player.aim();
+        // o
+        ui.showContextMenu();
+    }
+    
+    // Botón central - Acción terciaria
+    if (MouseEventHandler.get().isMouseButtonPressed(GLFW.GLFW_MOUSE_BUTTON_MIDDLE)) {
+        camera.toggleMode();
+    }
+}
+```
+
+**Ejemplo 2: Combinación teclado + ratón**:
+```java
+public void input() {
+    // Control de cámara con WASD
+    if (KeyboardEventHandler.get().isKeyPressed(GLFW.GLFW_KEY_W)) {
+        camera.moveForward();
+    }
+    
+    // Disparo con clic izquierdo
+    if (MouseEventHandler.get().isMouseButtonPressed(GLFW.GLFW_MOUSE_BUTTON_LEFT)) {
+        weapon.fire();
+    }
+    
+    // Sprint + disparo = disparo especial
+    if (KeyboardEventHandler.get().isKeyPressed(GLFW.GLFW_KEY_LEFT_SHIFT)
+        && MouseEventHandler.get().isMouseButtonPressed(GLFW.GLFW_MOUSE_BUTTON_LEFT)) {
+        weapon.fireSpecial();
+    }
+}
+```
+
+**Ejemplo 3: Detección de múltiples botones**:
+```java
+// Acción solo si ambos botones están presionados
+if (MouseEventHandler.get().isMouseButtonPressed(GLFW.GLFW_MOUSE_BUTTON_LEFT)
+    && MouseEventHandler.get().isMouseButtonPressed(GLFW.GLFW_MOUSE_BUTTON_RIGHT)) {
+    player.performSpecialAction();
+}
+```
+
+##### Características
+
+| Característica | Descripción |
+|----------------|-------------|
+| **Patrón Singleton** | `MouseEventHandler.get()` acceso global |
+| **Eficiencia** | Array booleano O(1) para consultas |
+| **Validación robusta** | Verifica límites superior e inferior (>= 0 y < GLFW_MOUSE_BUTTON_LAST) |
+| **Integración GLFW** | Callback registrado automáticamente en Window |
+| **Cleanup automático** | Liberación de recursos en Window.close() |
+| **Callback `inputCallback`** | Usa `Runnable` (más idiomático que `Consumer<Void>`) |
+| **Separación de fases** | input → update → render claramente diferenciadas |
+| **Thread-safe** | Singleton con createInstance() sincronizado |
+| **Consistencia** | Mismo patrón que KeyboardEventHandler |
+
+##### Códigos de Botón GLFW Comunes
+
+```java
+// Botones del ratón
+GLFW.GLFW_MOUSE_BUTTON_LEFT    // 0 - Botón izquierdo
+GLFW.GLFW_MOUSE_BUTTON_RIGHT   // 1 - Botón derecho
+GLFW.GLFW_MOUSE_BUTTON_MIDDLE  // 2 - Botón central (rueda)
+GLFW.GLFW_MOUSE_BUTTON_4       // 3 - Botón lateral 1
+GLFW.GLFW_MOUSE_BUTTON_5       // 4 - Botón lateral 2
+GLFW.GLFW_MOUSE_BUTTON_6       // 5 - Botón lateral 3
+GLFW.GLFW_MOUSE_BUTTON_7       // 6 - Botón lateral 4
+GLFW.GLFW_MOUSE_BUTTON_8       // 7 - Botón lateral 5
+
+// Límite
+GLFW.GLFW_MOUSE_BUTTON_LAST    // 8 - Total de botones soportados
+```
+
+##### Arquitectura del Sistema de Input
+
+```
+┌──────────────────────────────────────────────────┐
+│  Usuario interactúa (teclado/ratón)             │
+└────────────────────┬─────────────────────────────┘
+                     ↓
+┌──────────────────────────────────────────────────┐
+│  GLFW Window Callbacks                           │
+│  ├─> glfwSetKeyCallback()                        │
+│  └─> glfwSetMouseButtonCallback()                │
+└────────────────────┬─────────────────────────────┘
+                     ↓
+┌──────────────────────────────────────────────────┐
+│  Event Callbacks                                 │
+│  ├─> KeyCallback.invoke()                        │
+│  └─> MouseButtonCallback.invoke()                │
+└────────────────────┬─────────────────────────────┘
+                     ↓
+┌──────────────────────────────────────────────────┐
+│  Event Handlers (Singletons)                     │
+│  ├─> KeyboardEventHandler                        │
+│  │    └─> boolean[] keyPressed                   │
+│  └─> MouseEventHandler                           │
+│       └─> boolean[] mouseButtonPressed           │
+└────────────────────┬─────────────────────────────┘
+                     ↓
+┌──────────────────────────────────────────────────┐
+│  GameTiming.input() → inputCallback              │
+│  └─> Window.input()                              │
+│       ├─> KeyboardEventHandler.isKeyPressed()    │
+│       └─> MouseEventHandler.isMouseButtonPressed()│
+└──────────────────────────────────────────────────┘
+```
+
+##### Validaciones de Seguridad
+
+**Prevención de ArrayIndexOutOfBoundsException**:
+```java
+// Validación completa de límites
+public boolean isMouseButtonPressed(final int _buttonCode) {
+    if ((_buttonCode >= 0) && (_buttonCode < GLFW.GLFW_MOUSE_BUTTON_LAST)) {
+        return this.mouseButtonPressed[_buttonCode];  // Seguro
+    }
+    return false;  // ButtonCode inválido
+}
+```
+
+##### Mejoras sobre v0.4.0
+
+✅ **Sistema de input de ratón**: Complementa el teclado  
+✅ **Callback `inputCallback`**: Separación clara de input/update/render  
+✅ **Tipo `Runnable`**: Más idiomático que `Consumer<Void>`  
+✅ **Validación robusta**: Límites inferior y superior en ambos handlers  
+✅ **Consistencia arquitectónica**: Mismo patrón para teclado y ratón  
+✅ **Método `Window.input()`**: Centraliza toda la lógica de input  
+
+##### Mejoras Futuras (Próximas Versiones)
+
+⏳ **Posición del cursor**: mouseX, mouseY, deltaX, deltaY  
+⏳ **Scroll wheel**: Detección de scroll vertical y horizontal  
+⏳ **Modo captura de cursor**: Para cámaras FPS (GLFW_CURSOR_DISABLED)  
+⏳ **Detección "just pressed"**: Diferenciar pressed vs held  
+⏳ **Reset al perder foco**: Limpiar estado cuando ventana pierde foco  
+⏳ **Constantes para botones**: Wrapper para códigos comunes  
+⏳ **Gamepad support**: Controladores y joysticks  
+
+> **Nota**: Esta versión establece un sistema de input completo para teclado y ratón (botones). La separación input → update → render mejora la organización del código. Sistema simple, eficiente y extensible. Ideal para juegos 2D/3D básicos que requieren control de teclado y clics del ratón.
+
+#### v0.4.0 - Sistema de Input de Teclado
 
 La versión 0.4.0 introduce el **sistema de manejo de input de teclado**, permitiendo detectar cuando las teclas están presionadas. Implementación simple y eficiente usando GLFW callbacks:
 
@@ -2119,8 +2450,10 @@ El archivo de configuración está en `doc/checkstyle/checkstyle-rules.xml`.
               Window.java
             event/
               KeyboardEventHandler.java
+              MouseEventHandler.java
               callback/
                 KeyCallback.java
+                MouseButtonCallback.java
       resources/
         es/noa/rad/game/
           settings/

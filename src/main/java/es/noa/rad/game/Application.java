@@ -66,7 +66,7 @@ import es.noa.rad.game.engine.core.Window;
         (deltaTime) -> Window.get().render(deltaTime)
       );
       GameTiming.get().inputCallback(
-        (empty) -> Window.get().input()
+        () -> Window.get().input()
       );
 
       GameTiming.get().init();

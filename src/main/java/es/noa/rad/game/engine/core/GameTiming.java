@@ -34,7 +34,7 @@ import es.noa.rad.game.engine.configuration.settings.GameSettings;
     /**
      *
      */
-    private Consumer<Void> inputCallback;
+    private Runnable inputCallback;
 
     /**
      *
@@ -281,7 +281,7 @@ import es.noa.rad.game.engine.configuration.settings.GameSettings;
      */
     private void input() {
       if (this.inputCallback != null) {
-        this.inputCallback.accept(null);
+        this.inputCallback.run();
       } else {
         /* Default fallback if not configured the input callback. */
         Window.get().input();
@@ -357,10 +357,10 @@ import es.noa.rad.game.engine.configuration.settings.GameSettings;
 
     /**
      *
-     * @param _inputCallback {@code Consumer<Void>}
+     * @param _inputCallback {@code Runnable}
      */
     public void inputCallback(
-        final Consumer<Void> _inputCallback) {
+        final Runnable _inputCallback) {
       this.inputCallback = _inputCallback;
     }
 

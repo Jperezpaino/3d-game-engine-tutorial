@@ -5,6 +5,217 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1][0.4.1] - 2025-12-12
+
+### Añadido
+
+- **Sistema de manejo de input de ratón (mouse)**
+  - Nueva clase `MouseEventHandler` (singleton pattern)
+  - Gestiona el estado de todos los botones del ratón
+  - Array booleano `mouseButtonPressed[]` para tracking eficiente
+  - Integración con callbacks de GLFW
+- **Nueva clase `MouseButtonCallback`**
+  - Extiende `GLFWMouseButtonCallback` de LWJGL
+  - Procesa eventos de botones del ratón de GLFW
+  - Actualiza automáticamente el estado en `MouseEventHandler`
+- **API de consulta de botones del ratón**
+  - `isMouseButtonPressed(int buttonCode)` - Verifica si un botón está presionado
+  - `setMouseButtonPressed(int buttonCode, boolean status)` - Actualiza estado del botón
+  - `getGlfwMouseButtonCallback()` - Obtiene el callback de GLFW
+  - `close()` - Libera recursos del callback
+- **Nuevo callback `inputCallback` en `GameTiming`**
+  - Tipo `Runnable` para procesamiento de input
+  - Separación clara: input → update → render
+  - Llamado antes del loop de updates
+  - Fallback automático a `Window.get().input()` si no se configura
+- **Método `Window.input()`**
+  - Procesa input de teclado y ratón
+  - Detección de ESC para cerrar ventana
+  - Ejemplo de detección de clic izquierdo con mensaje en consola
+- **Validación robusta de botones del ratón**
+  - Verificación de límites superior e inferior (>= 0 y < GLFW_MOUSE_BUTTON_LAST)
+  - Previene ArrayIndexOutOfBoundsException
+  - Retorna false para códigos de botón inválidos
+
+### Cambiado
+
+- **`Window.init()` actualizado**
+  - Registra `MouseButtonCallback` en GLFW con `glfwSetMouseButtonCallback()`
+  - Integración del sistema de input de ratón en la inicialización
+- **`Window.close()` mejorado**
+  - Llama a `MouseEventHandler.get().close()` para liberar recursos
+  - Gestión completa de cleanup para teclado y ratón
+- **`GameTiming.inputCallback()` usa `Runnable`**
+  - Antes: `Consumer<Void>` (menos idiomático)
+  - Ahora: `Runnable` (más estándar en Java)
+  - Mejora semántica: callback sin parámetros ni retorno
+- **`GameTiming.input()` privado**
+  - Llama a `inputCallback.run()` si está configurado
+  - Fallback a `Window.get().input()` si no hay callback
+- **`Application.init()` configura `inputCallback`**
+  - `GameTiming.get().inputCallback(() -> Window.get().input())`
+  - Sintaxis más limpia con `Runnable`
+- **Funcionalidad de ESC movida a `Window.input()`**
+  - Antes: En `Application.run()` con campo `running`
+  - Ahora: En `Window.input()` con `glfwSetWindowShouldClose()`
+  - Mejor encapsulación del manejo de input
+- Versión actualizada de 0.4.0 a 0.4.1
+
+### Mejorado
+
+- **Arquitectura del game loop**
+  - Separación clara de responsabilidades: input → update → render
+  - `inputCallback` se ejecuta una vez por frame antes de updates
+  - Mejor organización del flujo de ejecución
+- **Consistencia entre handlers**
+  - `MouseEventHandler` sigue el mismo patrón que `KeyboardEventHandler`
+  - Validaciones idénticas en ambos sistemas
+  - APIs uniformes y predecibles
+
+### Notas Técnicas
+
+- **Filosofía de la v0.4.1**: Input básico de ratón simple y consistente
+  - Sistema singleton para acceso global al estado del ratón
+  - Patrón idéntico al de teclado para facilitar aprendizaje
+  - API minimalista enfocada en botones del ratón
+  - Base para futuras extensiones (posición, scroll)
+- **Patrón de diseño**:
+  - `MouseEventHandler` → Singleton que gestiona estado de botones
+  - `MouseButtonCallback` → Puente entre GLFW y el handler
+  - `GameTiming.inputCallback` → Hook para procesamiento de input
+  - `Window.input()` → Lógica centralizada de input
+- **Decisiones de implementación**:
+  - Array booleano para máxima eficiencia (O(1))
+  - Validación completa de buttonCode (límites superior e inferior)
+  - Callback registrado en Window (consistencia con teclado)
+  - `Runnable` en vez de `Consumer<Void>` (más idiomático)
+  - Liberación explícita de recursos en close()
+- **Limitaciones conocidas (a implementar en futuras versiones)**:
+  - No tracking de posición del cursor (mouseX, mouseY)
+  - No tracking de movimiento (deltaX, deltaY)
+  - No soporte para scroll wheel
+  - No modo captura de cursor (para cámaras FPS)
+  - No resetea estado al perder foco de ventana
+  - No constantes para botones comunes
+
+### Ejemplo de Uso
+
+**Verificar si un botón del ratón está presionado**:
+```java
+import org.lwjgl.glfw.GLFW;
+import es.noa.rad.game.engine.event.MouseEventHandler;
+
+// En Window.input() o método de input personalizado
+if (MouseEventHandler.get().isMouseButtonPressed(GLFW.GLFW_MOUSE_BUTTON_LEFT)) {
+    System.out.printf("Mouse Left Button Pressed.%n");
+    // Disparar arma, seleccionar objeto, etc.
+}
+
+if (MouseEventHandler.get().isMouseButtonPressed(GLFW.GLFW_MOUSE_BUTTON_RIGHT)) {
+    System.out.printf("Mouse Right Button Pressed.%n");
+    // Apuntar, menú contextual, etc.
+}
+
+if (MouseEventHandler.get().isMouseButtonPressed(GLFW.GLFW_MOUSE_BUTTON_MIDDLE)) {
+    System.out.printf("Mouse Middle Button Pressed.%n");
+}
+```
+
+**Implementación en Window.input()**:
+```java
+public void input() {
+    // Cerrar con ESC
+    if (KeyboardEventHandler.get().isKeyPressed(GLFW.GLFW_KEY_ESCAPE)) {
+        GLFW.glfwSetWindowShouldClose(this.glfwWindow, true);
+    }
+    
+    // Detectar clic izquierdo
+    if (MouseEventHandler.get().isMouseButtonPressed(GLFW.GLFW_MOUSE_BUTTON_LEFT)) {
+        System.out.printf("Mouse Button Left Pressed.%n");
+    }
+}
+```
+
+**Configuración de inputCallback en Application.init()**:
+```java
+// Configurar callback de input
+GameTiming.get().inputCallback(() -> Window.get().input());
+```
+
+**Integración en Window.init()**:
+```java
+// Registrar callback de botones del ratón
+GLFW.glfwSetMouseButtonCallback(
+    this.glfwWindow,
+    MouseEventHandler.get().getGlfwMouseButtonCallback()
+);
+```
+
+**Liberación de recursos en Window.close()**:
+```java
+// Liberar callbacks
+KeyboardEventHandler.get().close();
+MouseEventHandler.get().close();
+
+// Destruir ventana
+GLFW.glfwDestroyWindow(this.glfwWindow);
+GLFW.glfwTerminate();
+```
+
+**Flujo del sistema de input en el game loop**:
+```
+┌─────────────────────────────────────────────┐
+│  GameTiming.tick()                          │
+│  ┌───────────────────────────────────────┐  │
+│  │ 1. input()        ← inputCallback     │  │
+│  │    └─> Window.input()                 │  │
+│  │         ├─> Keyboard checks            │  │
+│  │         └─> Mouse checks               │  │
+│  │                                        │  │
+│  │ 2. while (deltaTime >= 1.0)           │  │
+│  │      update(fixedDeltaTime)           │  │
+│  │                                        │  │
+│  │ 3. render(alpha)                      │  │
+│  └───────────────────────────────────────┘  │
+└─────────────────────────────────────────────┘
+```
+
+**Arquitectura de eventos del ratón**:
+```
+┌──────────────────────────────────────────────┐
+│  Usuario presiona botón del ratón           │
+└────────────────┬─────────────────────────────┘
+                 ↓
+┌──────────────────────────────────────────────┐
+│  GLFW Window                                 │
+│  glfwSetMouseButtonCallback()                │
+└────────────────┬─────────────────────────────┘
+                 ↓
+┌──────────────────────────────────────────────┐
+│  MouseButtonCallback.invoke()                │
+│  ┌────────────────────────────────────────┐  │
+│  │ MouseEventHandler.setMouseButtonPressed│  │
+│  │   (_button, _action != GLFW_RELEASE)   │  │
+│  └────────────────────────────────────────┘  │
+└────────────────┬─────────────────────────────┘
+                 ↓
+┌──────────────────────────────────────────────┐
+│  MouseEventHandler (Singleton)               │
+│  ┌────────────────────────────────────────┐  │
+│  │ boolean[] mouseButtonPressed           │  │
+│  │ mouseButtonPressed[button] = status    │  │
+│  └────────────────────────────────────────┘  │
+└────────────────┬─────────────────────────────┘
+                 ↓
+┌──────────────────────────────────────────────┐
+│  Window.input() / Game Logic                 │
+│  ┌────────────────────────────────────────┐  │
+│  │ if (isMouseButtonPressed(LEFT))        │  │
+│  │   handleClick()                        │  │
+│  └────────────────────────────────────────┘  │
+└──────────────────────────────────────────────┘
+```
+
 ## [0.4.0][0.4.0] - 2025-12-11
 
 ### Añadido
@@ -1626,6 +1837,7 @@ Resultado: 60 UPS mantenido, catch-up automático
 - Build exitoso sin errores ni warnings
 - Código cumple 100% con reglas de Checkstyle
 
+[0.4.1]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.4.1
 [0.4.0]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.4.0
 [0.3.10]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.3.10
 [0.3.9]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.3.9
