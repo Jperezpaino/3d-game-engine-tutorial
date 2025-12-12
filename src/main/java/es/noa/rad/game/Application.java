@@ -1,14 +1,10 @@
 package es.noa.rad.game;
 
-import es.noa.rad.game.engine.core.GameTiming;
-import es.noa.rad.game.engine.core.Window;
-import es.noa.rad.game.engine.event.KeyboardEventHandler;
-
-import org.lwjgl.glfw.GLFW;
-
 import es.noa.rad.game.engine.configuration.Configuration;
 import es.noa.rad.game.engine.configuration.settings.GameSettings;
 import es.noa.rad.game.engine.configuration.settings.WindowSettings;
+import es.noa.rad.game.engine.core.GameTiming;
+import es.noa.rad.game.engine.core.Window;
 
   /**
    *
@@ -64,10 +60,13 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
 
       /* Set up game timing callbacks. */
       GameTiming.get().updateCallback(
-        deltaTime -> Window.get().update(deltaTime)
+        (deltaTime) -> Window.get().update(deltaTime)
       );
       GameTiming.get().renderCallback(
-        deltaTime -> Window.get().render(deltaTime)
+        (deltaTime) -> Window.get().render(deltaTime)
+      );
+      GameTiming.get().inputCallback(
+        (empty) -> Window.get().input()
       );
 
       GameTiming.get().init();
@@ -106,10 +105,6 @@ import es.noa.rad.game.engine.configuration.settings.WindowSettings;
       while ((this.running)
           && (!Window.get().shouldClose())
           && (GameTiming.get().tick())) {
-
-        if (KeyboardEventHandler.get().isKeyPressed(GLFW.GLFW_KEY_ESCAPE)) {
-          this.running = false;
-        }
 
         /*
          * Swap buffers and poll events.

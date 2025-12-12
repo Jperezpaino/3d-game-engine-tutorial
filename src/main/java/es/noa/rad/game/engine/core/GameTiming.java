@@ -34,6 +34,11 @@ import es.noa.rad.game.engine.configuration.settings.GameSettings;
     /**
      *
      */
+    private Consumer<Void> inputCallback;
+
+    /**
+     *
+     */
     private boolean running;
 
     /**
@@ -231,6 +236,8 @@ import es.noa.rad.game.engine.configuration.settings.GameSettings;
         this.deltaTime = this.maxDeltaTime;
       }
 
+      this.input();
+
       /*
        * Catch-up loop: Run accumulated updates with fixed timestep.
        * Limited to maxUpdatesPerFrame to prevent spiral of death.
@@ -267,6 +274,18 @@ import es.noa.rad.game.engine.configuration.settings.GameSettings;
       this.render((float) this.deltaTime);
 
       return true;
+    }
+
+    /**
+     *
+     */
+    private void input() {
+      if (this.inputCallback != null) {
+        this.inputCallback.accept(null);
+      } else {
+        /* Default fallback if not configured the input callback. */
+        Window.get().input();
+      }
     }
 
     /**
@@ -334,6 +353,15 @@ import es.noa.rad.game.engine.configuration.settings.GameSettings;
     public void renderCallback(
         final Consumer<Float> _renderCallback) {
       this.renderCallback = _renderCallback;
+    }
+
+    /**
+     *
+     * @param _inputCallback {@code Consumer<Void>}
+     */
+    public void inputCallback(
+        final Consumer<Void> _inputCallback) {
+      this.inputCallback = _inputCallback;
     }
 
     /**

@@ -3,7 +3,9 @@ package es.noa.rad.game.engine.core;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.glfw.GLFWVidMode;
 import org.lwjgl.system.MemoryUtil;
+
 import es.noa.rad.game.engine.event.KeyboardEventHandler;
+import es.noa.rad.game.engine.event.MouseEventHandler;
 
   /**
    *
@@ -127,6 +129,10 @@ import es.noa.rad.game.engine.event.KeyboardEventHandler;
         this.glfwWindow,
         KeyboardEventHandler.get().getGlfwKeyCallback()
       );
+      GLFW.glfwSetMouseButtonCallback(
+        this.glfwWindow,
+        MouseEventHandler.get().getGlfwMouseButtonCallback()
+      );
 
       /* Make the window visible. */
       GLFW.glfwShowWindow(this.glfwWindow);
@@ -159,14 +165,27 @@ import es.noa.rad.game.engine.event.KeyboardEventHandler;
 
     /**
      *
+     */
+    public void input() {
+      if (KeyboardEventHandler.get().isKeyPressed(GLFW.GLFW_KEY_ESCAPE)) {
+        GLFW.glfwSetWindowShouldClose(this.glfwWindow, true);
+      }
+      if (MouseEventHandler.get()
+        .isMouseButtonPressed(GLFW.GLFW_MOUSE_BUTTON_LEFT)) {
+        System.out.printf("Mouse Button Left Pressed.%n");
+      }
+    }
+
+    /**
+     *
      * @param _deltaTime {@code float}
      */
     public void update(
         final float _deltaTime) {
-      System.out.printf(
-        "Updating Game! Delta: %.4f.%n",
-        _deltaTime
-      );
+      // System.out.printf(
+      //  "Updating Game! Delta: %.4f.%n",
+      //  _deltaTime
+      // );
     }
 
     /**
@@ -175,10 +194,10 @@ import es.noa.rad.game.engine.event.KeyboardEventHandler;
      */
     public void render(
         final float _deltaTime) {
-      System.out.printf(
-        "Rendering Game! Delta: %.4f.%n",
-        _deltaTime
-      );
+      // System.out.printf(
+      //   "Rendering Game! Delta: %.4f.%n",
+      //   _deltaTime
+      // );
     }
 
     /**
@@ -196,6 +215,9 @@ import es.noa.rad.game.engine.event.KeyboardEventHandler;
     public void close() {
       /* Free the Keyboard callback. */
       KeyboardEventHandler.get().close();
+
+      /* Free the Mouse callback. */
+      MouseEventHandler.get().close();
 
       /* Free the window callbacks and destroy the window. */
       GLFW.glfwDestroyWindow(this.glfwWindow);
