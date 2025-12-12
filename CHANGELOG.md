@@ -5,6 +5,131 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.3][0.4.3] - 2025-12-12
+
+### Añadido
+
+- **Sistema de scroll wheel (rueda del ratón)**
+  - Nuevos campos `cursorScrollX` y `cursorScrollY` en `MouseEventHandler`
+  - Almacena valores acumulativos de scroll para control global
+  - Valores tipo `double` para máxima precisión
+  - Inicializados a `(0.0, 0.0)` en el constructor
+  - Diseñado para zoom global persistente (no se resetea automáticamente)
+- **Nueva clase `ScrollCallback`**
+  - Extiende `GLFWScrollCallback` de LWJGL
+  - Procesa eventos de scroll wheel de GLFW
+  - Actualiza acumulativamente los valores en `MouseEventHandler`
+  - Callback invocado cada vez que se mueve la rueda del ratón
+  - Soporta scroll vertical (Y) y horizontal (X)
+- **API de scroll acumulativo**
+  - `getCursorScrollX()` - Obtiene el valor acumulado de scroll horizontal
+  - `getCursorScrollY()` - Obtiene el valor acumulado de scroll vertical
+  - `setCursorScrollX(double x)` - Establece el scroll horizontal (reset manual)
+  - `setCursorScrollY(double y)` - Establece el scroll vertical (reset manual)
+  - `addCursorScrollX(double x)` - Añade al scroll horizontal (acumulativo)
+  - `addCursorScrollY(double y)` - Añade al scroll vertical (acumulativo)
+  - `getGlfwScrollCallback()` - Obtiene el callback de scroll de GLFW
+- **Ejemplo interactivo ampliado en `Window.input()`**
+  - Muestra posición del cursor y valores de scroll al hacer clic
+  - Formato: `(x: %.0f, y: %.0f, Scroll x: %.0f, Scroll y: %.0f)`
+  - Demuestra uso combinado de botones, posición y scroll
+
+### Cambiado
+
+- **`MouseEventHandler.close()` actualizado**
+  - Ahora libera tres callbacks: `glfwCursorPosCallback`, `glfwScrollCallback` y `glfwMouseButtonCallback`
+  - Gestión completa de recursos del sistema de ratón
+- **`Window.init()` mejorado**
+  - Registra `ScrollCallback` en GLFW con `glfwSetScrollCallback()`
+  - Sistema completo de input de ratón: botones + posición + scroll
+- **Ejemplo de detección mejorado**
+  - Ahora incluye valores de scroll en la salida
+  - Útil para debug y demostración de zoom
+
+### Mejorado
+
+- **Sistema de input de ratón completo**
+  - v0.4.1: Botones
+  - v0.4.2: Botones + posición
+  - v0.4.3: Botones + posición + scroll (sistema completo)
+- **Arquitectura escalable mantenida**
+  - Patrón consistente con todos los callbacks anteriores
+  - Código predecible y fácil de mantener
+
+### Notas Técnicas
+
+**Arquitectura del Sistema de Mouse (v0.4.3)**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         GLFW Events                             │
+│                    (Window System Layer)                        │
+└────────┬────────────────────┬────────────────────┬──────────────┘
+         │                    │                    │
+         ▼                    ▼                    ▼
+┌────────────────┐  ┌──────────────────┐  ┌──────────────────┐
+│ MouseButton    │  │  CursorPos       │  │  Scroll          │
+│ Callback       │  │  Callback        │  │  Callback        │
+│ (Buttons)      │  │  (Position)      │  │  (Wheel)         │
+└────────┬───────┘  └────────┬─────────┘  └────────┬─────────┘
+         │                   │                     │
+         └─────────┬─────────┴──────────┬──────────┘
+                   ▼                    ▼
+         ┌──────────────────────────────────────┐
+         │      MouseEventHandler               │
+         │         (Singleton)                  │
+         │                                      │
+         │  - Button States []                  │
+         │  - Position X/Y                      │
+         │  - Scroll X/Y (Acumulativo)          │
+         └──────────────┬───────────────────────┘
+                        │
+                        ▼
+               ┌─────────────────┐
+               │  Window.input() │
+               │   (Game Logic)  │
+               │   - Zoom        │
+               │   - Camera      │
+               └─────────────────┘
+```
+
+**Comportamiento del Scroll:**
+- **Scroll Y positivo**: Rueda hacia arriba (hacia el usuario) → Zoom in
+- **Scroll Y negativo**: Rueda hacia abajo (lejos del usuario) → Zoom out
+- **Scroll X positivo**: Rueda hacia la derecha (trackpads)
+- **Scroll X negativo**: Rueda hacia la izquierda (trackpads)
+- **Valores típicos**: ±1.0 por "notch" de la rueda (varía según hardware/OS)
+- **Acumulativo**: Los valores se suman frame a frame (diseño intencional)
+- **Uso principal**: Zoom global, ajuste de cámara, control de escala
+
+**Ejemplo de Uso para Zoom:**
+
+```java
+// En lógica de cámara o renderizado
+public void update(float deltaTime) {
+  double scrollY = MouseEventHandler.get().getCursorScrollY();
+  
+  // Aplicar zoom basado en scroll acumulativo
+  double zoomFactor = 1.0 + (scrollY * 0.1);
+  // scrollY = 0  → zoom = 1.0 (normal)
+  // scrollY = 5  → zoom = 1.5 (150% - más cerca)
+  // scrollY = -5 → zoom = 0.5 (50% - más lejos)
+  
+  camera.setZoom(zoomFactor);
+}
+
+// Reset manual del zoom (opcional)
+if (KeyboardEventHandler.get().isKeyPressed(GLFW.GLFW_KEY_R)) {
+  MouseEventHandler.get().setCursorScrollY(0.0);  // Reset zoom
+}
+```
+
+**Diferencia con Sistemas de Scroll por Frame:**
+- Otros motores: Reset automático cada frame (scroll = delta)
+- Este motor: Acumulativo global (scroll = nivel de zoom)
+- Ventaja: Perfecto para zoom persistente sin estado adicional
+- Nota: Si se necesita scroll por frame, usar `setCursorScrollY(0.0)` manualmente
+
 ## [0.4.2][0.4.2] - 2025-12-12
 
 ### Añadido
@@ -1944,6 +2069,7 @@ Resultado: 60 UPS mantenido, catch-up automático
 - Build exitoso sin errores ni warnings
 - Código cumple 100% con reglas de Checkstyle
 
+[0.4.3]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.4.3
 [0.4.2]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.4.2
 [0.4.1]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.4.1
 [0.4.0]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.4.0

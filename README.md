@@ -876,7 +876,369 @@ Frames Per Second (FPS): 144  (Monitor 144Hz)
 
 > **Nota**: Esta versión combina Fixed Timestep (v0.3.4), VSync (v0.3.5), y Spiral of Death Protection (v0.3.4). Versión robusta ideal para proyectos que requieren física determinística, calidad visual perfecta, y funcionamiento en hardware variable.
 
-#### v0.4.2 - Tracking de Posición del Cursor (Implementación Actual)
+#### v0.4.3 - Sistema de Scroll Wheel (Implementación Actual)
+
+La versión 0.4.3 completa el sistema de input de ratón añadiendo **soporte para scroll wheel (rueda del ratón)**. Implementación acumulativa diseñada para zoom global persistente:
+
+##### Sistema de Scroll Wheel
+
+**Componentes principales**:
+```
+MouseEventHandler (Singleton)
+├─> boolean[] mouseButtonPressed         // Estado de todos los botones (v0.4.1)
+├─> double cursorPositionX               // Posición X del cursor (v0.4.2)
+├─> double cursorPositionY               // Posición Y del cursor (v0.4.2)
+├─> double cursorScrollX                 // Scroll horizontal acumulativo (v0.4.3) ⭐
+├─> double cursorScrollY                 // Scroll vertical acumulativo (v0.4.3) ⭐
+├─> GLFWMouseButtonCallback callback     // Callback de botones
+├─> GLFWCursorPosCallback callback       // Callback de posición
+├─> GLFWScrollCallback callback          // Callback de scroll (v0.4.3) ⭐
+├─> getCursorScrollX()                   // Obtener scroll X (v0.4.3) ⭐
+├─> getCursorScrollY()                   // Obtener scroll Y (v0.4.3) ⭐
+├─> setCursorScrollX(x)                  // Establecer scroll X (reset manual) ⭐
+├─> setCursorScrollY(y)                  // Establecer scroll Y (reset manual) ⭐
+├─> addCursorScrollX(x)                  // Añadir a scroll X (acumulativo) ⭐
+└─> addCursorScrollY(y)                  // Añadir a scroll Y (acumulativo) ⭐
+
+ScrollCallback (GLFWScrollCallback) (v0.4.3) ⭐
+└─> invoke(window, xOffset, yOffset)     // Procesa eventos de scroll
+    ├─> MouseEventHandler.addCursorScrollX(xOffset)
+    └─> MouseEventHandler.addCursorScrollY(yOffset)
+```
+
+##### Implementación
+
+**ScrollCallback (v0.4.3)**:
+```java
+package es.noa.rad.game.engine.event.callback;
+
+import org.lwjgl.glfw.GLFWScrollCallback;
+import es.noa.rad.game.engine.event.MouseEventHandler;
+
+public final class ScrollCallback extends GLFWScrollCallback {
+  
+  @Override
+  public void invoke(
+      final long _window,
+      final double _xOffSet,
+      final double _yOffSet) {
+    MouseEventHandler.get().addCursorScrollX(_xOffSet);
+    MouseEventHandler.get().addCursorScrollY(_yOffSet);
+  }
+}
+```
+
+**MouseEventHandler actualizado (v0.4.3)**:
+```java
+public final class MouseEventHandler {
+  
+  private static MouseEventHandler instance = null;
+  
+  private final GLFWCursorPosCallback glfwCursorPosCallback;
+  private final GLFWScrollCallback glfwScrollCallback;        // ⭐ NUEVO
+  private final GLFWMouseButtonCallback glfwMouseButtonCallback;
+  
+  private double cursorPositionX;
+  private double cursorPositionY;
+  private double cursorScrollX;   // ⭐ NUEVO (acumulativo)
+  private double cursorScrollY;   // ⭐ NUEVO (acumulativo)
+  private final boolean[] mouseButtonPressed;
+  
+  private MouseEventHandler() {
+    this.cursorPositionX = 0.0d;
+    this.cursorPositionY = 0.0d;
+    this.cursorScrollX = 0.0d;    // ⭐ NUEVO
+    this.cursorScrollY = 0.0d;    // ⭐ NUEVO
+    this.mouseButtonPressed = new boolean[GLFW.GLFW_MOUSE_BUTTON_LAST];
+    this.glfwCursorPosCallback = new CursorPosCallback();
+    this.glfwScrollCallback = new ScrollCallback();           // ⭐ NUEVO
+    this.glfwMouseButtonCallback = new MouseButtonCallback();
+  }
+  
+  // Getters de scroll (v0.4.3) ⭐
+  public double getCursorScrollX() {
+    return this.cursorScrollX;
+  }
+  
+  public double getCursorScrollY() {
+    return this.cursorScrollY;
+  }
+  
+  // Setters para reset manual (v0.4.3) ⭐
+  public void setCursorScrollX(final double _cursorScrollX) {
+    this.cursorScrollX = _cursorScrollX;
+  }
+  
+  public void setCursorScrollY(final double _cursorScrollY) {
+    this.cursorScrollY = _cursorScrollY;
+  }
+  
+  // Métodos acumulativos (v0.4.3) ⭐
+  public void addCursorScrollX(final double _cursorScrollX) {
+    this.cursorScrollX += _cursorScrollX;
+  }
+  
+  public void addCursorScrollY(final double _cursorScrollY) {
+    this.cursorScrollY += _cursorScrollY;
+  }
+  
+  public GLFWScrollCallback getGlfwScrollCallback() {  // ⭐ NUEVO
+    return this.glfwScrollCallback;
+  }
+  
+  public void close() {
+    this.glfwCursorPosCallback.free();
+    this.glfwScrollCallback.free();     // ⭐ NUEVO
+    this.glfwMouseButtonCallback.free();
+  }
+  
+  // ... resto de métodos de versiones anteriores ...
+}
+```
+
+**Window.init() actualizado (v0.4.3)**:
+```java
+public void init() {
+  // ... código anterior ...
+  
+  GLFW.glfwSetKeyCallback(
+    this.glfwWindow,
+    KeyboardEventHandler.get().getGlfwKeyCallback()
+  );
+  GLFW.glfwSetCursorPosCallback(
+    this.glfwWindow,
+    MouseEventHandler.get().getGlfwCursorPosCallback()
+  );
+  GLFW.glfwSetScrollCallback(                            // ⭐ NUEVO
+    this.glfwWindow,
+    MouseEventHandler.get().getGlfwScrollCallback()
+  );
+  GLFW.glfwSetMouseButtonCallback(
+    this.glfwWindow,
+    MouseEventHandler.get().getGlfwMouseButtonCallback()
+  );
+  
+  GLFW.glfwShowWindow(this.glfwWindow);
+}
+```
+
+##### Ejemplos de Uso
+
+**1. Zoom global con scroll acumulativo:**
+```java
+public void update(float deltaTime) {
+  final MouseEventHandler mouse = MouseEventHandler.get();
+  
+  // Obtener nivel de zoom basado en scroll acumulado
+  double scrollY = mouse.getCursorScrollY();
+  double zoomFactor = 1.0 + (scrollY * 0.1);
+  
+  // scrollY = 0  → zoom = 1.0 (normal)
+  // scrollY = 5  → zoom = 1.5 (150% - más cerca)
+  // scrollY = -5 → zoom = 0.5 (50% - más lejos)
+  
+  camera.setZoom(zoomFactor);
+}
+```
+
+**2. Reset del zoom con tecla:**
+```java
+public void input() {
+  final MouseEventHandler mouse = MouseEventHandler.get();
+  
+  // Resetear zoom al presionar 'R'
+  if (KeyboardEventHandler.get().isKeyPressed(GLFW.GLFW_KEY_R)) {
+    mouse.setCursorScrollY(0.0);  // Volver a zoom normal
+    System.out.println("Zoom reseteado");
+  }
+}
+```
+
+**3. Scroll con límites (evitar zoom extremo):**
+```java
+public void update(float deltaTime) {
+  final MouseEventHandler mouse = MouseEventHandler.get();
+  
+  double scrollY = mouse.getCursorScrollY();
+  
+  // Limitar rango de scroll para evitar valores extremos
+  final double MIN_SCROLL = -10.0;  // Máximo alejamiento
+  final double MAX_SCROLL = 10.0;   // Máximo acercamiento
+  
+  if (scrollY < MIN_SCROLL) {
+    mouse.setCursorScrollY(MIN_SCROLL);
+    scrollY = MIN_SCROLL;
+  } else if (scrollY > MAX_SCROLL) {
+    mouse.setCursorScrollY(MAX_SCROLL);
+    scrollY = MAX_SCROLL;
+  }
+  
+  double zoomFactor = 1.0 + (scrollY * 0.1);
+  camera.setZoom(zoomFactor);
+}
+```
+
+**4. Mostrar información de scroll (debug):**
+```java
+public void input() {
+  final MouseEventHandler mouse = MouseEventHandler.get();
+  
+  if (mouse.isMouseButtonPressed(GLFW.GLFW_MOUSE_BUTTON_LEFT)) {
+    System.out.printf(
+      "(x: %.0f, y: %.0f, Scroll x: %.0f, Scroll y: %.0f)%n",
+      mouse.getCursorPositionX(),
+      mouse.getCursorPositionY(),
+      mouse.getCursorScrollX(),
+      mouse.getCursorScrollY()
+    );
+  }
+}
+```
+
+**5. Scroll horizontal para panorámica:**
+```java
+public void update(float deltaTime) {
+  final MouseEventHandler mouse = MouseEventHandler.get();
+  
+  // Usar scroll horizontal (trackpad) para mover cámara lateralmente
+  double scrollX = mouse.getCursorScrollX();
+  camera.panHorizontal(scrollX * 10.0);  // Factor de movimiento
+}
+```
+
+##### Características del Sistema
+
+| Característica | Descripción |
+|---------------|-------------|
+| **Precisión** | `double` (64-bit) para valores exactos |
+| **Modo** | Acumulativo (no se resetea automáticamente) |
+| **Scroll Y positivo** | Rueda hacia arriba → Zoom in |
+| **Scroll Y negativo** | Rueda hacia abajo → Zoom out |
+| **Scroll X positivo** | Rueda/trackpad hacia derecha |
+| **Scroll X negativo** | Rueda/trackpad hacia izquierda |
+| **Valores típicos** | ±1.0 por "notch" de rueda (varía según HW/OS) |
+| **Reset** | Manual con `setCursorScrollY(0.0)` |
+| **Uso principal** | Zoom global, control de cámara 3D |
+| **Thread-safety** | GLFW garantiza llamadas en main thread |
+
+##### Comportamiento del Scroll
+
+```
+Dirección del Scroll:
+┌──────────────────────────────────────┐
+│  Rueda hacia ARRIBA (↑)              │
+│  → scrollY += 1.0 (positivo)         │
+│  → Zoom IN / Acercar                 │
+└──────────────────────────────────────┘
+
+┌──────────────────────────────────────┐
+│  Rueda hacia ABAJO (↓)               │
+│  → scrollY -= 1.0 (negativo)         │
+│  → Zoom OUT / Alejar                 │
+└──────────────────────────────────────┘
+
+┌──────────────────────────────────────┐
+│  Trackpad hacia DERECHA (→)          │
+│  → scrollX += 1.0 (positivo)         │
+│  → Pan derecha                       │
+└──────────────────────────────────────┘
+
+┌──────────────────────────────────────┐
+│  Trackpad hacia IZQUIERDA (←)        │
+│  → scrollX -= 1.0 (negativo)         │
+│  → Pan izquierda                     │
+└──────────────────────────────────────┘
+```
+
+##### Flujo de Eventos (v0.4.3)
+
+```
+┌──────────────────────────────────────────────┐
+│  Usuario mueve la rueda del ratón            │
+└────────────────┬─────────────────────────────┘
+                 ▼
+┌──────────────────────────────────────────────┐
+│  GLFW detecta el scroll                      │
+│  glfwPollEvents() procesa eventos            │
+└────────────────┬─────────────────────────────┘
+                 ▼
+┌──────────────────────────────────────────────┐
+│  ScrollCallback.invoke(window, xOff, yOff)   │
+│  Callback registrado con glfwSetScroll...    │
+└────────────────┬─────────────────────────────┘
+                 ▼
+┌──────────────────────────────────────────────┐
+│  MouseEventHandler.addCursorScrollX(xOff)    │
+│  MouseEventHandler.addCursorScrollY(yOff)    │
+│  Acumula los valores (+=)                    │
+└────────────────┬─────────────────────────────┘
+                 ▼
+┌──────────────────────────────────────────────┐
+│  update() o cualquier método de juego        │
+│  Consulta: getCursorScrollY()                │
+│  Aplica zoom: 1.0 + (scroll * 0.1)           │
+└──────────────────────────────────────────────┘
+```
+
+##### Integración con Sistema Completo de Mouse
+
+El scroll complementa el sistema completo de input de ratón:
+
+```java
+public void input() {
+  final MouseEventHandler mouse = MouseEventHandler.get();
+  
+  // Sistema completo: botones + posición + scroll
+  if (mouse.isMouseButtonPressed(GLFW.GLFW_MOUSE_BUTTON_LEFT)) {
+    // Clic detectado (v0.4.1)
+    double x = mouse.getCursorPositionX();  // Posición (v0.4.2)
+    double y = mouse.getCursorPositionY();  // Posición (v0.4.2)
+    double zoom = mouse.getCursorScrollY(); // Scroll (v0.4.3)
+    
+    System.out.printf("Clic en (%.0f, %.0f) | Zoom: %.1f%n", x, y, zoom);
+  }
+}
+
+public void update(float deltaTime) {
+  final MouseEventHandler mouse = MouseEventHandler.get();
+  
+  // Aplicar zoom basado en scroll acumulativo
+  double zoomLevel = 1.0 + (mouse.getCursorScrollY() * 0.1);
+  camera.setZoom(zoomLevel);
+}
+```
+
+##### Diferencias con Otros Motores
+
+| Motor | Comportamiento | Reset |
+|-------|---------------|-------|
+| **Este motor (0.4.3)** | Acumulativo global | Manual (cuando se necesite) |
+| Unity | Delta por frame | Automático cada frame |
+| Unreal | Delta por frame | Automático cada frame |
+| Godot | Delta por frame | Automático cada frame |
+
+**Ventajas del enfoque acumulativo:**
+- ✅ Perfecto para zoom persistente sin estado adicional
+- ✅ No requiere variable separada de nivel de zoom
+- ✅ Más simple para control de cámara 3D
+- ✅ Un solo valor representa el estado completo
+
+**Cuándo resetear manualmente:**
+- Al cambiar de cámara
+- Al resetear la vista (tecla 'R', botón UI)
+- Al cargar un nivel nuevo
+- Al cambiar de modo de juego
+
+##### Notas de Diseño
+
+> **Diseño intencional**: El scroll es **acumulativo** y no se resetea automáticamente cada frame. Esto es ideal para:
+> - Zoom global persistente en motores 3D
+> - Control de cámara que mantiene el nivel de zoom
+> - Interfaces que necesitan scroll acumulado
+> 
+> Si necesitas scroll "por frame" (delta), simplemente llama a `setCursorScrollY(0.0)` manualmente después de procesar el scroll.
+
+#### v0.4.2 - Tracking de Posición del Cursor
 
 La versión 0.4.2 extiende el sistema de input de ratón de v0.4.1, añadiendo **tracking de la posición del cursor**. Ahora es posible conocer las coordenadas exactas del cursor en todo momento:
 
@@ -2704,6 +3066,7 @@ El archivo de configuración está en `doc/checkstyle/checkstyle-rules.xml`.
                 KeyCallback.java
                 MouseButtonCallback.java
                 CursorPosCallback.java
+                ScrollCallback.java
       resources/
         es/noa/rad/game/
           settings/
