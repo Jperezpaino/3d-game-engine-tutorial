@@ -5,6 +5,113 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2][0.4.2] - 2025-12-12
+
+### Añadido
+
+- **Tracking de posición del cursor del ratón**
+  - Nuevos campos `cursorPositionX` y `cursorPositionY` en `MouseEventHandler`
+  - Almacena la posición actual del cursor en coordenadas de ventana
+  - Valores tipo `double` para máxima precisión
+  - Inicializados a `(0.0, 0.0)` en el constructor
+- **Nueva clase `CursorPosCallback`**
+  - Extiende `GLFWCursorPosCallback` de LWJGL
+  - Procesa eventos de movimiento del cursor de GLFW
+  - Actualiza automáticamente la posición en `MouseEventHandler`
+  - Callback invocado cada vez que el cursor se mueve dentro de la ventana
+- **API de consulta de posición del cursor**
+  - `getCursorPositionX()` - Obtiene la coordenada X del cursor
+  - `getCursorPositionY()` - Obtiene la coordenada Y del cursor
+  - `setCursorPositionX(double x)` - Actualiza la coordenada X
+  - `setCursorPositionY(double y)` - Actualiza la coordenada Y
+  - `getGlfwCursorPosCallback()` - Obtiene el callback de posición de GLFW
+- **Ejemplo interactivo en `Window.input()`**
+  - Muestra las coordenadas del cursor al hacer clic izquierdo
+  - Formato: `(x: %.0f, y: %.0f)`
+  - Demuestra el uso combinado de botones y posición
+
+### Cambiado
+
+- **`MouseEventHandler.close()` actualizado**
+  - Ahora libera ambos callbacks: `glfwCursorPosCallback` y `glfwMouseButtonCallback`
+  - Gestión completa de recursos del sistema de ratón
+- **`Window.init()` mejorado**
+  - Registra `CursorPosCallback` en GLFW con `glfwSetCursorPosCallback()`
+  - Sistema completo de input de ratón: botones + posición
+- **Ejemplo de detección de clic mejorado**
+  - Antes: Solo mostraba mensaje genérico
+  - Ahora: Muestra las coordenadas exactas donde se hizo clic
+
+### Mejorado
+
+- **Sistema de input de ratón más completo**
+  - Antes: Solo detección de botones (v0.4.1)
+  - Ahora: Botones + posición del cursor
+  - Arquitectura escalable para futuras mejoras (deltas, scroll)
+- **Consistencia en el patrón de callbacks**
+  - `CursorPosCallback` sigue el mismo patrón que `MouseButtonCallback` y `KeyCallback`
+  - Código más predecible y mantenible
+
+### Notas Técnicas
+
+**Arquitectura del Sistema de Mouse (v0.4.2)**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                         GLFW Events                          │
+│                    (Window System Layer)                     │
+└────────────────┬────────────────────────┬───────────────────┘
+                 │                        │
+                 ▼                        ▼
+      ┌─────────────────────┐  ┌──────────────────────┐
+      │ MouseButtonCallback │  │  CursorPosCallback   │
+      │  (Button Events)    │  │  (Position Events)   │
+      └──────────┬──────────┘  └──────────┬───────────┘
+                 │                        │
+                 └────────┬───────────────┘
+                          ▼
+                ┌──────────────────────┐
+                │  MouseEventHandler   │
+                │     (Singleton)      │
+                │                      │
+                │  - Button States []  │
+                │  - Position X/Y      │
+                └──────────┬───────────┘
+                           │
+                           ▼
+                  ┌─────────────────┐
+                  │  Window.input() │
+                  │   (Game Logic)  │
+                  └─────────────────┘
+```
+
+**Coordenadas del Cursor:**
+- Origen: Esquina superior izquierda (0, 0)
+- X aumenta hacia la derecha
+- Y aumenta hacia abajo
+- Valores en píxeles de la ventana
+
+**Ejemplo de Uso:**
+
+```java
+// En Window.input() o cualquier método de lógica de juego
+final MouseEventHandler mouse = MouseEventHandler.get();
+
+if (mouse.isMouseButtonPressed(GLFW.GLFW_MOUSE_BUTTON_LEFT)) {
+  double x = mouse.getCursorPositionX();
+  double y = mouse.getCursorPositionY();
+  System.out.printf("Clic en (x: %.0f, y: %.0f)%n", x, y);
+}
+```
+
+**Mejoras Futuras Planificadas:**
+- Delta tracking (movimiento relativo frame a frame)
+- Flag `firstMouseMove` para evitar saltos iniciales
+- Método `resetDeltas()` para limpiar deltas cada frame
+- Modo de captura de cursor para juegos FPS
+- Epsilon para filtrar ruido de hardware
+- Soporte para scroll wheel
+
 ## [0.4.1][0.4.1] - 2025-12-12
 
 ### Añadido
@@ -1837,6 +1944,7 @@ Resultado: 60 UPS mantenido, catch-up automático
 - Build exitoso sin errores ni warnings
 - Código cumple 100% con reglas de Checkstyle
 
+[0.4.2]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.4.2
 [0.4.1]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.4.1
 [0.4.0]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.4.0
 [0.3.10]: https://github.com/Jperezpaino/3d-game-engine-tutorial/releases/tag/0.3.10

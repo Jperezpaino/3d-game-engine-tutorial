@@ -876,6 +876,255 @@ Frames Per Second (FPS): 144  (Monitor 144Hz)
 
 > **Nota**: Esta versión combina Fixed Timestep (v0.3.4), VSync (v0.3.5), y Spiral of Death Protection (v0.3.4). Versión robusta ideal para proyectos que requieren física determinística, calidad visual perfecta, y funcionamiento en hardware variable.
 
+#### v0.4.2 - Tracking de Posición del Cursor (Implementación Actual)
+
+La versión 0.4.2 extiende el sistema de input de ratón de v0.4.1, añadiendo **tracking de la posición del cursor**. Ahora es posible conocer las coordenadas exactas del cursor en todo momento:
+
+##### Sistema de Tracking de Posición
+
+**Componentes principales**:
+```
+MouseEventHandler (Singleton)
+├─> boolean[] mouseButtonPressed         // Estado de todos los botones (v0.4.1)
+├─> double cursorPositionX               // Posición X del cursor (v0.4.2) ⭐
+├─> double cursorPositionY               // Posición Y del cursor (v0.4.2) ⭐
+├─> GLFWMouseButtonCallback callback     // Callback de botones
+├─> GLFWCursorPosCallback callback       // Callback de posición (v0.4.2) ⭐
+├─> getCursorPositionX()                 // Obtener X (v0.4.2) ⭐
+├─> getCursorPositionY()                 // Obtener Y (v0.4.2) ⭐
+├─> setCursorPositionX(x)                // Actualizar X (v0.4.2) ⭐
+└─> setCursorPositionY(y)                // Actualizar Y (v0.4.2) ⭐
+
+CursorPosCallback (GLFWCursorPosCallback) (v0.4.2) ⭐
+└─> invoke(window, xPos, yPos)           // Procesa eventos de movimiento
+    ├─> MouseEventHandler.setCursorPositionX(xPos)
+    └─> MouseEventHandler.setCursorPositionY(yPos)
+```
+
+##### Implementación
+
+**CursorPosCallback (v0.4.2)**:
+```java
+package es.noa.rad.game.engine.event.callback;
+
+import org.lwjgl.glfw.GLFWCursorPosCallback;
+import es.noa.rad.game.engine.event.MouseEventHandler;
+
+public final class CursorPosCallback extends GLFWCursorPosCallback {
+  
+  @Override
+  public void invoke(
+      final long _window,
+      final double _xPosition,
+      final double _yPosition) {
+    MouseEventHandler.get().setCursorPositionX(_xPosition);
+    MouseEventHandler.get().setCursorPositionY(_yPosition);
+  }
+}
+```
+
+**MouseEventHandler actualizado (v0.4.2)**:
+```java
+public final class MouseEventHandler {
+  
+  private static MouseEventHandler instance = null;
+  
+  private final GLFWCursorPosCallback glfwCursorPosCallback;      // ⭐ NUEVO
+  private final GLFWMouseButtonCallback glfwMouseButtonCallback;
+  
+  private double cursorPositionX;  // ⭐ NUEVO
+  private double cursorPositionY;  // ⭐ NUEVO
+  private final boolean[] mouseButtonPressed;
+  
+  private MouseEventHandler() {
+    this.cursorPositionX = 0.0d;   // ⭐ NUEVO
+    this.cursorPositionY = 0.0d;   // ⭐ NUEVO
+    this.mouseButtonPressed = new boolean[GLFW.GLFW_MOUSE_BUTTON_LAST];
+    this.glfwCursorPosCallback = new CursorPosCallback();        // ⭐ NUEVO
+    this.glfwMouseButtonCallback = new MouseButtonCallback();
+  }
+  
+  // Getters y Setters de posición (v0.4.2) ⭐
+  public double getCursorPositionX() {
+    return this.cursorPositionX;
+  }
+  
+  public void setCursorPositionX(final double _cursorPositionX) {
+    this.cursorPositionX = _cursorPositionX;
+  }
+  
+  public double getCursorPositionY() {
+    return this.cursorPositionY;
+  }
+  
+  public void setCursorPositionY(final double _cursorPositionY) {
+    this.cursorPositionY = _cursorPositionY;
+  }
+  
+  public GLFWCursorPosCallback getGlfwCursorPosCallback() {  // ⭐ NUEVO
+    return this.glfwCursorPosCallback;
+  }
+  
+  public void close() {
+    this.glfwCursorPosCallback.free();     // ⭐ NUEVO
+    this.glfwMouseButtonCallback.free();
+  }
+  
+  // ... resto de métodos de v0.4.1 ...
+}
+```
+
+**Window.init() actualizado (v0.4.2)**:
+```java
+public void init() {
+  // ... código anterior ...
+  
+  GLFW.glfwSetKeyCallback(
+    this.glfwWindow,
+    KeyboardEventHandler.get().getGlfwKeyCallback()
+  );
+  GLFW.glfwSetCursorPosCallback(                            // ⭐ NUEVO
+    this.glfwWindow,
+    MouseEventHandler.get().getGlfwCursorPosCallback()
+  );
+  GLFW.glfwSetMouseButtonCallback(
+    this.glfwWindow,
+    MouseEventHandler.get().getGlfwMouseButtonCallback()
+  );
+  
+  GLFW.glfwShowWindow(this.glfwWindow);
+}
+```
+
+##### Ejemplos de Uso
+
+**1. Detectar clic y mostrar coordenadas:**
+```java
+public void input() {
+  final MouseEventHandler mouse = MouseEventHandler.get();
+  
+  if (mouse.isMouseButtonPressed(GLFW.GLFW_MOUSE_BUTTON_LEFT)) {
+    System.out.printf(
+      "(x: %.0f, y: %.0f)%n",
+      mouse.getCursorPositionX(),
+      mouse.getCursorPositionY()
+    );
+  }
+}
+```
+
+**2. Detectar cursor en una región:**
+```java
+public void input() {
+  final MouseEventHandler mouse = MouseEventHandler.get();
+  
+  double x = mouse.getCursorPositionX();
+  double y = mouse.getCursorPositionY();
+  
+  // Detectar si el cursor está sobre un botón UI
+  if (x >= 100 && x <= 300 && y >= 50 && y <= 100) {
+    // Cursor sobre botón (100, 50) - (300, 100)
+    if (mouse.isMouseButtonPressed(GLFW.GLFW_MOUSE_BUTTON_LEFT)) {
+      System.out.println("¡Botón clickeado!");
+    }
+  }
+}
+```
+
+**3. Tracking continuo de posición:**
+```java
+public void input() {
+  final MouseEventHandler mouse = MouseEventHandler.get();
+  
+  // Mostrar posición en todo momento (útil para debug)
+  System.out.printf(
+    "Cursor: (%.0f, %.0f)%n",
+    mouse.getCursorPositionX(),
+    mouse.getCursorPositionY()
+  );
+  
+  // O almacenar para usar en update()
+  this.lastMouseX = mouse.getCursorPositionX();
+  this.lastMouseY = mouse.getCursorPositionY();
+}
+```
+
+##### Características del Sistema
+
+| Característica | Descripción |
+|---------------|-------------|
+| **Precisión** | `double` (64-bit) para coordenadas exactas |
+| **Sistema de coordenadas** | Origen (0,0) en esquina superior izquierda |
+| **Dirección X** | Aumenta hacia la derecha |
+| **Dirección Y** | Aumenta hacia abajo |
+| **Unidades** | Píxeles de la ventana |
+| **Actualización** | Automática con cada movimiento del cursor |
+| **Rendimiento** | Sin overhead, actualización directa |
+| **Thread-safety** | GLFW garantiza llamadas en main thread |
+
+##### Flujo de Eventos (v0.4.2)
+
+```
+┌──────────────────────────────────────────────┐
+│  Usuario mueve el cursor dentro de la ventana │
+└────────────────┬─────────────────────────────┘
+                 ▼
+┌──────────────────────────────────────────────┐
+│  GLFW detecta el movimiento                  │
+│  glfwPollEvents() procesa eventos            │
+└────────────────┬─────────────────────────────┘
+                 ▼
+┌──────────────────────────────────────────────┐
+│  CursorPosCallback.invoke(window, x, y)      │
+│  Callback registrado con glfwSetCursorPos... │
+└────────────────┬─────────────────────────────┘
+                 ▼
+┌──────────────────────────────────────────────┐
+│  MouseEventHandler.setCursorPositionX(x)     │
+│  MouseEventHandler.setCursorPositionY(y)     │
+│  Almacena las coordenadas                    │
+└────────────────┬─────────────────────────────┘
+                 ▼
+┌──────────────────────────────────────────────┐
+│  Window.input() o cualquier método de juego  │
+│  Consulta: getCursorPositionX/Y()            │
+│  Usa las coordenadas para lógica de juego    │
+└──────────────────────────────────────────────┘
+```
+
+##### Integración con Sistema de Botones (v0.4.1)
+
+El tracking de posición complementa perfectamente el sistema de botones:
+
+```java
+public void input() {
+  final MouseEventHandler mouse = MouseEventHandler.get();
+  
+  // Sistema combinado: botones + posición
+  if (mouse.isMouseButtonPressed(GLFW.GLFW_MOUSE_BUTTON_LEFT)) {
+    // Botón izquierdo presionado (v0.4.1)
+    double x = mouse.getCursorPositionX();  // Posición (v0.4.2)
+    double y = mouse.getCursorPositionY();  // Posición (v0.4.2)
+    
+    // Lógica de juego: pintar, seleccionar, etc.
+    handleClick(x, y);
+  }
+}
+```
+
+##### Mejoras Futuras Planificadas
+
+Las siguientes características se implementarán en versiones posteriores:
+
+| Mejora | Versión Planificada | Descripción |
+|--------|---------------------|-------------|
+| **Delta tracking** | v0.4.3+ | Movimiento relativo frame a frame |
+| **firstMouseMove flag** | v0.4.3+ | Evitar salto inicial al entrar |
+| **resetDeltas()** | v0.4.3+ | Limpiar deltas cada frame |
+| **Cursor capture mode** | v0.5.0+ | Para juegos FPS (cursor oculto) |
+| **Epsilon filtering** | v0.5.0+ | Filtrar ruido de hardware |
+| **Scroll wheel** | v0.5.0+ | Eventos de scroll horizontal/vertical |
+
 #### v0.4.1 - Sistema de Input de Ratón (Implementación Actual)
 
 La versión 0.4.1 añade el **sistema de manejo de input de ratón**, complementando el sistema de teclado de v0.4.0. Incluye también un nuevo callback `inputCallback` en `GameTiming` para separar input de update/render:
@@ -2454,6 +2703,7 @@ El archivo de configuración está en `doc/checkstyle/checkstyle-rules.xml`.
               callback/
                 KeyCallback.java
                 MouseButtonCallback.java
+                CursorPosCallback.java
       resources/
         es/noa/rad/game/
           settings/
